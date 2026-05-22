@@ -1,0 +1,39 @@
+{
+  "name": "@nexplore-duties/frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "React TypeScript frontend for duties.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "serve": "vite preview --host 0.0.0.0",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.4.0",
+    "antd": "^5.19.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.2.2",
+    "typescript": "^5.5.3",
+    "vite": "^8.0.14"
+  }
+}
