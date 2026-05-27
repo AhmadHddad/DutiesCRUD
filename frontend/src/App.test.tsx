@@ -2,27 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Duty, DutyInput, DutyListPage, DutyListQuery } from '@nexplore-duties/contracts';
+import { AxiosError, AxiosHeaders } from 'axios';
 
 import App from './App';
-import { ApiClientError, createDuty, deleteDuty, getDutyPage, updateDuty } from './api/dutiesApi';
+import { createDuty, deleteDuty, getDutyPage, updateDuty } from './api/dutiesApi';
 
 jest.mock('./api/dutiesApi', () => {
-  class MockApiClientError extends Error {
-    public readonly status: number;
-    public readonly code: string;
-    public readonly requestId?: string;
-
-    public constructor(message: string, status: number, code = 'NETWORK_ERROR', requestId?: string) {
-      super(message);
-      this.name = 'ApiClientError';
-      this.status = status;
-      this.code = code;
-      this.requestId = requestId;
-    }
-  }
-
   return {
-    ApiClientError: MockApiClientError,
     getDutyPage: jest.fn(),
     createDuty: jest.fn(),
     updateDuty: jest.fn(),
@@ -173,7 +159,15 @@ describe('App', () => {
   });
 
   it('shows API errors', async () => {
-    mockedGetDutyPage.mockRejectedValue(new ApiClientError('Backend unavailable', 0));
+    const error = new AxiosError('Backend unavailable');
+    error.response = {
+      data: { error: { message: 'Backend unavailable' } },
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: {},
+      config: { headers: new AxiosHeaders() }
+    };
+    mockedGetDutyPage.mockRejectedValue(error);
 
     renderApp();
 

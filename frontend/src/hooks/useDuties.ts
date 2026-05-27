@@ -1,12 +1,18 @@
 import { InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Duty, DutyListPage } from '@nexplore-duties/contracts';
+import type { DutyListPage } from '@nexplore-duties/contracts';
 import { useCallback, useMemo } from 'react';
+import axios from 'axios';
 
-import { ApiClientError, createDuty, deleteDuty, getDutyPage, updateDuty } from '../api/dutiesApi';
+import { createDuty, deleteDuty, getDutyPage, updateDuty } from '../api/dutiesApi';
 
 const DUTIES_QUERY_KEY = ['duties'] as const;
 const DUTIES_PAGE_LIMIT = 50;
 
+/**
+ * Central state manager for duties using React Query.
+ * Handles infinite scrolling pagination and provides optimistic/cached UI updates
+ * when duties are added, edited, or removed to avoid unnecessary full page refetches.
+ */
 export function useDuties() {
   const queryClient = useQueryClient();
   const dutiesQuery = useInfiniteQuery({
@@ -105,8 +111,12 @@ export function useDuties() {
 }
 
 function toUserMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    return error.requestId === undefined ? error.message : `${error.message} Request ID: ${error.requestId}`;
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { error?: { message?: string; requestId?: string } } | undefined;
+    const message = data?.error?.message ?? error.message;
+    const requestId = data?.error?.requestId ?? error.response?.headers?.['x-request-id'];
+
+    return requestId === undefined ? message : `${message} Request ID: ${requestId}`;
   }
 
   if (error instanceof Error) {
