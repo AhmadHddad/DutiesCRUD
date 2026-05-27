@@ -2,13 +2,15 @@ import express from 'express';
 
 import { loadConfig } from './config/env';
 import { getPool } from './database/pool';
+import { ServiceUnavailableError } from './errors/appErrors';
+import { createCorsMiddleware } from './middleware/cors';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { requestIdMiddleware, requestLogger } from './middleware/requestId';
+import { createApiRateLimiter, createDutyWriteRateLimiter, createSecurityMiddleware } from './middleware/security';
 import { PgDutyRepository } from './modules/duties/duty.repository';
 import { createDutyRouter } from './modules/duties/duty.routes';
 import { DutyService } from './modules/duties/duty.service';
 import { DutyServiceContract } from './modules/duties/duty.types';
-import { createCorsMiddleware } from './shared/cors';
-import { errorHandler, notFoundHandler, ServiceUnavailableError } from './shared/errors';
-import { requestIdMiddleware, requestLogger } from './shared/requestId';
 
 export interface AppDependencies {
   dutyService?: DutyServiceContract;
@@ -20,12 +22,15 @@ export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
   const dutyService = dependencies.dutyService ?? new DutyService(new PgDutyRepository(getPool(config)));
   const healthCheck = dependencies.healthCheck ?? defaultHealthCheck;
+  const dutyWriteRateLimiter = createDutyWriteRateLimiter(config);
 
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
   app.use(requestLogger);
+  app.use(createSecurityMiddleware());
   app.use(createCorsMiddleware(config.corsOrigin));
   app.use(express.json({ limit: '64kb' }));
+  app.use('/api', createApiRateLimiter(config));
 
   app.get('/health', async (_req, res, next) => {
     try {
@@ -40,7 +45,7 @@ export function createApp(dependencies: AppDependencies = {}) {
     }
   });
 
-  app.use('/api/duties', createDutyRouter(dutyService));
+  app.use('/api/duties', createDutyRouter(dutyService, dutyWriteRateLimiter));
   app.use(notFoundHandler);
   app.use(errorHandler);
 

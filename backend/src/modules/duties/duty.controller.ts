@@ -1,14 +1,15 @@
 import { Response } from 'express';
 
-import { asyncHandler } from '../../shared/asyncHandler';
-import { parseDutyId, parseDutyInput } from './duty.validation';
+import { asyncHandler } from '../../middleware/asyncHandler';
+import { parseDutyId, parseDutyInput, parseDutyListQuery } from './duty.validation';
 import { DutyServiceContract } from './duty.types';
 
 export class DutyController {
   public constructor(private readonly dutyService: DutyServiceContract) {}
 
-  public list = asyncHandler(async (_req, res: Response) => {
-    const duties = await this.dutyService.listDuties();
+  public list = asyncHandler(async (req, res: Response) => {
+    const query = parseDutyListQuery(req.query);
+    const duties = await this.dutyService.listDuties(query);
     res.status(200).json({ data: duties });
   });
 

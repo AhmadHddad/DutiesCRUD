@@ -4,14 +4,16 @@
   "version": "1.0.0",
   "description": "End-to-end duties to-do application with independent React and Node.js projects.",
   "scripts": {
-    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "install:all": "npm --prefix packages/contracts install && npm --prefix backend install && npm --prefix frontend install",
+    "contracts:build": "npm --prefix packages/contracts run build",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "backend:migrate": "npm --prefix backend run migrate",
     "backend:dev": "npm --prefix backend run dev",
     "frontend:dev": "npm --prefix frontend run dev",
+    "app:dev": "npm run backend:dev && npm run frontend:dev",
     "test": "npm --prefix backend test && npm --prefix frontend test",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "build": "npm run contracts:build && npm --prefix backend run build && npm --prefix frontend run build"
   },
   "engines": {
     "node": ">=20"

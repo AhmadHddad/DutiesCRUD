@@ -3,7 +3,7 @@ import path from 'node:path';
 import { Pool } from 'pg';
 
 import { loadConfig } from '../config/env';
-import { logger } from '../shared/logger';
+import { logger } from '../utils/logger';
 
 async function migrate(): Promise<void> {
   const config = loadConfig();

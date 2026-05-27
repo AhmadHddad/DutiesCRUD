@@ -1,11 +1,11 @@
-import { NotFoundError } from '../../shared/errors';
-import { Duty, DutyInput, DutyRepository, DutyServiceContract } from './duty.types';
+import { NotFoundError } from '../../errors/appErrors';
+import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRepository, DutyServiceContract } from './duty.types';
 
 export class DutyService implements DutyServiceContract {
   public constructor(private readonly repository: DutyRepository) {}
 
-  public async listDuties(): Promise<Duty[]> {
-    return this.repository.findAll();
+  public async listDuties(query: DutyListQuery): Promise<DutyListPage> {
+    return this.repository.findAll(query);
   }
 
   public async createDuty(input: DutyInput): Promise<Duty> {

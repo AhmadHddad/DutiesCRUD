@@ -13,9 +13,9 @@ The repository contains two independent TypeScript projects:
 
 ## Architecture
 
-The backend is a clean modular service. The duties domain is isolated behind route, controller, service, repository, validation, and SQL/database layers. Shared operational concerns such as configuration, request IDs, structured logging, CORS, centralized errors, migrations, and graceful shutdown live outside the domain module.
+The backend keeps an intentional domain-oriented `src/modules/` boundary so additional domains can grow without flattening the service. The duties domain stays isolated behind route, controller, service, repository, validation, and SQL/database layers, while Express request lifecycle code now lives under `src/middleware/`, reusable error types under `src/errors/`, and logger-style utilities under `src/utils/`.
 
-The frontend is independent from the backend. API calls are isolated in `src/api`, state is handled with React hooks, and Ant Design components provide the table, forms, modal, loading, empty, and error states.
+The frontend remains independent from backend internals. API calls are isolated in `src/api`, state is handled with React hooks, Ant Design components provide the table, forms, modal, loading, empty, and error states, and shared duty contracts are consumed from `packages/contracts/`.
 
 ## Prerequisites
 
@@ -144,7 +144,7 @@ interface Duty {
 
 ## Operational Notes
 
-- Duty names are trimmed and must be between 1 and 120 characters.
+- Duty names are trimmed and must be between 1 and 256 characters.
 - Route IDs must be valid UUIDs.
 - SQL uses parameterized queries only.
 - Request logs are emitted as JSON with request ID, method, path, status, and duration.

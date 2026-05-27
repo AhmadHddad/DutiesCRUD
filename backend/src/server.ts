@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { createApp } from './app';
 import { loadConfig } from './config/env';
 import { closePool } from './database/pool';
-import { logger } from './shared/logger';
+import { logger } from './utils/logger';
 
 const config = loadConfig();
 const app = createApp();

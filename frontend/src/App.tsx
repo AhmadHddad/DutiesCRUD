@@ -1,60 +1,33 @@
-import { DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Alert, Button, Empty, Layout, Popconfirm, Space, Table, Tooltip, Typography } from 'antd';
-import { ColumnsType } from 'antd/es/table';
-import { useMemo, useState } from 'react';
+import { ReloadOutlined } from '@ant-design/icons';
+import { Alert, Button, Layout, Spin, Tooltip, Typography } from 'antd';
+import { lazy, Suspense, useState } from 'react';
+import type { Duty } from '@nexplore-duties/contracts';
 
 import { CreateDutyForm } from './components/CreateDutyForm';
-import { EditDutyModal } from './components/EditDutyModal';
+import { DutiesTable } from './components/DutiesTable';
 import { useDuties } from './hooks/useDuties';
-import { Duty } from './types/duty';
 import './App.css';
 
 const { Header, Content } = Layout;
+const EditDutyModal = lazy(() => import('./components/EditDutyModal'));
 
 export default function App() {
-  const { duties, error, isLoading, isMutating, loadDuties, addDuty, saveDuty, removeDuty } = useDuties();
+  const {
+    duties,
+    error,
+    total,
+    loadedCount,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isMutating,
+    loadDuties,
+    loadMore,
+    addDuty,
+    saveDuty,
+    removeDuty
+  } = useDuties();
   const [editingDuty, setEditingDuty] = useState<Duty | null>(null);
-
-  const columns = useMemo<ColumnsType<Duty>>(
-    () => [
-      {
-        title: 'Duty',
-        dataIndex: 'name',
-        key: 'name',
-        render: (name: string) => <Typography.Text>{name}</Typography.Text>
-      },
-      {
-        title: 'Actions',
-        key: 'actions',
-        align: 'right',
-        width: 130,
-        render: (_value, duty) => (
-          <Space size="small">
-            <Tooltip title="Edit">
-              <Button
-                aria-label={`Edit ${duty.name}`}
-                icon={<EditOutlined />}
-                onClick={() => setEditingDuty(duty)}
-                type="text"
-              />
-            </Tooltip>
-            <Popconfirm
-              cancelText="Cancel"
-              okButtonProps={{ danger: true, loading: isMutating }}
-              okText="Delete"
-              onConfirm={() => removeDuty(duty.id)}
-              title="Delete duty?"
-            >
-              <Tooltip title="Delete">
-                <Button aria-label={`Delete ${duty.name}`} danger icon={<DeleteOutlined />} type="text" />
-              </Tooltip>
-            </Popconfirm>
-          </Space>
-        )
-      }
-    ],
-    [isMutating, removeDuty]
-  );
 
   async function handleCreate(name: string): Promise<void> {
     await addDuty(name);
@@ -106,26 +79,32 @@ export default function App() {
             <Typography.Title id="duties-heading" level={2}>
               Current duties
             </Typography.Title>
-            <Typography.Text type="secondary">{duties.length} total</Typography.Text>
+            <Typography.Text type="secondary">{`${loadedCount} of ${total} loaded`}</Typography.Text>
           </div>
-          <Table
-            columns={columns}
-            dataSource={duties}
-            loading={isLoading}
-            locale={{ emptyText: <Empty description="No duties yet" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-            pagination={false}
-            rowKey="id"
+          <DutiesTable
+            duties={duties}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            isLoading={isLoading}
+            isMutating={isMutating}
+            loadedCount={loadedCount}
+            onDelete={removeDuty}
+            onEdit={setEditingDuty}
+            onLoadMore={loadMore}
+            total={total}
           />
         </section>
       </Content>
       {editingDuty !== null ? (
-        <EditDutyModal
-          duty={editingDuty}
-          isSaving={isMutating}
-          onCancel={() => setEditingDuty(null)}
-          onSave={handleSave}
-          open
-        />
+        <Suspense fallback={<Spin fullscreen size="large" />}>
+          <EditDutyModal
+            duty={editingDuty}
+            isSaving={isMutating}
+            onCancel={() => setEditingDuty(null)}
+            onSave={handleSave}
+            open
+          />
+        </Suspense>
       ) : null}
     </Layout>
   );

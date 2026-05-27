@@ -1,4 +1,4 @@
-import { Duty, DutyInput } from '../types/duty';
+import type { Duty, DutyInput, DutyListPage, DutyListQuery } from '@nexplore-duties/contracts';
 
 interface ApiEnvelope<T> {
   data: T;
@@ -28,8 +28,13 @@ export class ApiClientError extends Error {
   }
 }
 
-export async function getDuties(): Promise<Duty[]> {
-  return request<Duty[]>('/api/duties');
+export async function getDutyPage(query: DutyListQuery): Promise<DutyListPage> {
+  const params = new URLSearchParams({
+    limit: String(query.limit),
+    offset: String(query.offset)
+  });
+
+  return request<DutyListPage>(`/api/duties?${params.toString()}`);
 }
 
 export async function createDuty(input: DutyInput): Promise<Duty> {

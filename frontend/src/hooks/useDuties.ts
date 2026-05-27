@@ -1,85 +1,103 @@
-import { useCallback, useEffect, useState } from 'react';
+import { InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Duty, DutyListPage } from '@nexplore-duties/contracts';
+import { useCallback, useMemo } from 'react';
 
-import { ApiClientError, createDuty, deleteDuty, getDuties, updateDuty } from '../api/dutiesApi';
-import { Duty } from '../types/duty';
+import { ApiClientError, createDuty, deleteDuty, getDutyPage, updateDuty } from '../api/dutiesApi';
+
+const DUTIES_QUERY_KEY = ['duties'] as const;
+const DUTIES_PAGE_LIMIT = 50;
 
 export function useDuties() {
-  const [duties, setDuties] = useState<Duty[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMutating, setIsMutating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const dutiesQuery = useInfiniteQuery({
+    queryKey: DUTIES_QUERY_KEY,
+    queryFn: ({ pageParam }) =>
+      getDutyPage({
+        limit: DUTIES_PAGE_LIMIT,
+        offset: pageParam
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined
+  });
+
+  const addDutyMutation = useMutation({
+    mutationFn: (input: { name: string }) => createDuty(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: DUTIES_QUERY_KEY });
+    }
+  });
+
+  const saveDutyMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateDuty(id, { name }),
+    onSuccess: (updatedDuty) => {
+      queryClient.setQueryData<InfiniteData<DutyListPage, number>>(DUTIES_QUERY_KEY, (currentData) => {
+        if (currentData === undefined) {
+          return currentData;
+        }
+
+        return {
+          ...currentData,
+          pages: currentData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((duty) => (duty.id === updatedDuty.id ? updatedDuty : duty))
+          }))
+        };
+      });
+    }
+  });
+
+  const removeDutyMutation = useMutation({
+    mutationFn: (id: string) => deleteDuty(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: DUTIES_QUERY_KEY });
+    }
+  });
+
+  const duties = useMemo(() => dutiesQuery.data?.pages.flatMap((page) => page.items) ?? [], [dutiesQuery.data?.pages]);
+  const total = dutiesQuery.data?.pages[0]?.total ?? 0;
+  const loadedCount = duties.length;
+
+  const addDuty = useCallback(
+    async (name: string) => addDutyMutation.mutateAsync({ name }),
+    [addDutyMutation]
+  );
+
+  const saveDuty = useCallback(
+    async (id: string, name: string) => saveDutyMutation.mutateAsync({ id, name }),
+    [saveDutyMutation]
+  );
+
+  const removeDuty = useCallback(async (id: string) => removeDutyMutation.mutateAsync(id), [removeDutyMutation]);
+
+  const loadMore = useCallback(async () => {
+    if (!dutiesQuery.hasNextPage || dutiesQuery.isFetchingNextPage) {
+      return;
+    }
+
+    await dutiesQuery.fetchNextPage();
+  }, [dutiesQuery]);
 
   const loadDuties = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    await dutiesQuery.refetch();
+  }, [dutiesQuery]);
 
-    try {
-      const nextDuties = await getDuties();
-      setDuties(nextDuties);
-    } catch (caughtError) {
-      setError(toUserMessage(caughtError));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadDuties();
-  }, [loadDuties]);
-
-  const addDuty = useCallback(async (name: string) => {
-    setIsMutating(true);
-    setError(null);
-
-    try {
-      const duty = await createDuty({ name });
-      setDuties((currentDuties) => [duty, ...currentDuties]);
-      return duty;
-    } catch (caughtError) {
-      setError(toUserMessage(caughtError));
-      throw caughtError;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
-
-  const saveDuty = useCallback(async (id: string, name: string) => {
-    setIsMutating(true);
-    setError(null);
-
-    try {
-      const duty = await updateDuty(id, { name });
-      setDuties((currentDuties) => currentDuties.map((currentDuty) => (currentDuty.id === id ? duty : currentDuty)));
-      return duty;
-    } catch (caughtError) {
-      setError(toUserMessage(caughtError));
-      throw caughtError;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
-
-  const removeDuty = useCallback(async (id: string) => {
-    setIsMutating(true);
-    setError(null);
-
-    try {
-      await deleteDuty(id);
-      setDuties((currentDuties) => currentDuties.filter((duty) => duty.id !== id));
-    } catch (caughtError) {
-      setError(toUserMessage(caughtError));
-      throw caughtError;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
+  const error = useMemo(() => {
+    const sourceError =
+      addDutyMutation.error ?? saveDutyMutation.error ?? removeDutyMutation.error ?? dutiesQuery.error ?? null;
+    return sourceError === null ? null : toUserMessage(sourceError);
+  }, [addDutyMutation.error, dutiesQuery.error, removeDutyMutation.error, saveDutyMutation.error]);
 
   return {
     duties,
     error,
-    isLoading,
-    isMutating,
+    total,
+    loadedCount,
+    isLoading: dutiesQuery.isLoading,
+    isFetchingNextPage: dutiesQuery.isFetchingNextPage,
+    hasNextPage: dutiesQuery.hasNextPage ?? false,
+    isMutating: addDutyMutation.isPending || saveDutyMutation.isPending || removeDutyMutation.isPending,
     loadDuties,
+    loadMore,
     addDuty,
     saveDuty,
     removeDuty

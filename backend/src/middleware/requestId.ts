@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 
-import { logger } from './logger';
+import { logger } from '../utils/logger';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
