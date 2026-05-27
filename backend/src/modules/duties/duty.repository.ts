@@ -15,35 +15,55 @@ export class PgDutyRepository implements DutyRepository {
   public constructor(private readonly pool: Pool) {}
 
   public async findAll(query: DutyListQuery): Promise<DutyListPage> {
-    const [pageResult, countResult] = await Promise.all([
-      this.pool.query<DutyRow>(
-        `
-          SELECT id::text, name
-          FROM duties
-          ORDER BY created_at DESC, id DESC
-          LIMIT $1
-          OFFSET $2
-        `,
-        [query.limit, query.offset]
-      ),
-      this.pool.query<CountRow>(
-        `
-          SELECT COUNT(*)::text AS count
-          FROM duties
-        `
-      )
-    ]);
+    const client = await this.pool.connect();
 
-    const total = Number(countResult.rows[0]?.count ?? '0');
-    const nextOffset = query.offset + pageResult.rows.length < total ? query.offset + pageResult.rows.length : null;
+    try {
+      // REPEATABLE READ guarantees both queries see the same snapshot,
+      // so items, total, and nextOffset stay internally consistent.
+      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
 
-    return {
-      items: pageResult.rows,
-      total,
-      limit: query.limit,
-      offset: query.offset,
-      nextOffset
-    };
+      const [pageResult, countResult] = await Promise.all([
+        client.query<DutyRow>(
+          `
+            SELECT id::text, name
+            FROM duties
+            ORDER BY created_at DESC, id DESC
+            LIMIT $1
+            OFFSET $2
+          `,
+          [query.limit, query.offset]
+        ),
+        client.query<CountRow>(
+          `
+            SELECT COUNT(*)::text AS count
+            FROM duties
+          `
+        )
+      ]);
+
+      await client.query('COMMIT');
+
+      const total = Number(countResult.rows[0]?.count ?? '0');
+      const nextOffset = query.offset + pageResult.rows.length < total ? query.offset + pageResult.rows.length : null;
+
+      return {
+        items: pageResult.rows,
+        total,
+        limit: query.limit,
+        offset: query.offset,
+        nextOffset
+      };
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Preserve the original failure if rollback also fails.
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   public async create(input: DutyInput): Promise<Duty> {
@@ -56,7 +76,9 @@ export class PgDutyRepository implements DutyRepository {
       [input.name]
     );
 
-    return result.rows[0] as Duty;
+    const row = result.rows[0];
+    if (!row) throw new Error('INSERT into duties returned no row');
+    return row as Duty;
   }
 
   public async update(id: string, input: DutyInput): Promise<Duty | null> {
