@@ -5,6 +5,7 @@ import { Button, Form, Input } from 'antd';
 import { Controller, useForm } from 'react-hook-form';
 
 import { DUTY_NAME_MAX_LENGTH, dutyFormSchema } from './dutySchema';
+import { dutyLabels } from '../i18n/dutiesLabels';
 
 interface CreateDutyFormProps {
   isSubmitting: boolean;
@@ -42,16 +43,16 @@ export function CreateDutyForm({ isSubmitting, onCreate }: CreateDutyFormProps) 
           render={({ field }) => (
             <Input
               {...field}
-              aria-label="New duty name"
+              aria-label={dutyLabels.createDutyForm.nameAriaLabel}
               maxLength={DUTY_NAME_MAX_LENGTH}
-              placeholder="Add a duty"
+              placeholder={dutyLabels.createDutyForm.namePlaceholder}
             />
           )}
         />
       </Form.Item>
       <Form.Item className="create-duty-form__button">
         <Button htmlType="submit" icon={<PlusOutlined />} loading={isSubmitting} type="primary">
-          Add duty
+          {dutyLabels.createDutyForm.submitButton}
         </Button>
       </Form.Item>
     </form>

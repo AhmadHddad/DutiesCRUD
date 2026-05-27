@@ -6,6 +6,7 @@ import type { Duty } from '@nexplore-duties/contracts';
 import { CreateDutyForm } from './components/CreateDutyForm';
 import { DutiesTable } from './components/DutiesTable';
 import { useDuties } from './hooks/useDuties';
+import { dutyLabels, formatLoadedCountLabel } from './i18n/dutiesLabels';
 import './App.css';
 
 const { Header, Content } = Layout;
@@ -48,13 +49,13 @@ export default function App() {
         <div className="app-header__inner">
           <div>
             <Typography.Title className="app-title" level={1}>
-              Duties
+              {dutyLabels.app.title}
             </Typography.Title>
-            <Typography.Text className="app-subtitle">Shared operational to-do list</Typography.Text>
+            <Typography.Text className="app-subtitle">{dutyLabels.app.subtitle}</Typography.Text>
           </div>
-          <Tooltip title="Refresh">
+          <Tooltip title={dutyLabels.app.refreshTooltip}>
             <Button
-              aria-label="Refresh duties"
+              aria-label={dutyLabels.app.refreshAriaLabel}
               disabled={isLoading}
               icon={<ReloadOutlined />}
               onClick={() => void loadDuties()}
@@ -66,7 +67,7 @@ export default function App() {
         <section className="workspace-panel" aria-labelledby="create-duty-heading">
           <div className="section-heading">
             <Typography.Title id="create-duty-heading" level={2}>
-              New duty
+              {dutyLabels.app.createSectionTitle}
             </Typography.Title>
           </div>
           <CreateDutyForm isSubmitting={isMutating} onCreate={handleCreate} />
@@ -77,9 +78,9 @@ export default function App() {
         <section className="workspace-panel" aria-labelledby="duties-heading">
           <div className="section-heading section-heading--table">
             <Typography.Title id="duties-heading" level={2}>
-              Current duties
+              {dutyLabels.app.dutiesSectionTitle}
             </Typography.Title>
-            <Typography.Text type="secondary">{`${loadedCount} of ${total} loaded`}</Typography.Text>
+            <Typography.Text type="secondary">{formatLoadedCountLabel(loadedCount, total)}</Typography.Text>
           </div>
           <DutiesTable
             duties={duties}

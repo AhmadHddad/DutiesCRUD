@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { DUTY_NAME_MAX_LENGTH, dutyFormSchema } from './dutySchema';
+import { dutyLabels } from '../i18n/dutiesLabels';
 
 interface EditDutyModalProps {
   duty: Duty | null;
@@ -41,18 +42,24 @@ function EditDutyModal({ duty, isSaving, open, onCancel, onSave }: EditDutyModal
     <Modal
       confirmLoading={isSaving}
       destroyOnHidden
-      okText="Save changes"
+      okText={dutyLabels.editDutyModal.saveButton}
       onCancel={onCancel}
       onOk={() => void handleSubmit(handleFinish)()}
       open={open}
-      title="Edit duty"
+      title={dutyLabels.editDutyModal.title}
     >
       <form id="edit-duty-form" onSubmit={handleSubmit(handleFinish)}>
-        <Form.Item help={errors.name?.message} label="Duty name" validateStatus={errors.name ? 'error' : undefined}>
+        <Form.Item
+          help={errors.name?.message}
+          label={dutyLabels.editDutyModal.nameLabel}
+          validateStatus={errors.name ? 'error' : undefined}
+        >
           <Controller
             control={control}
             name="name"
-            render={({ field }) => <Input {...field} aria-label="Duty name" maxLength={DUTY_NAME_MAX_LENGTH} />}
+            render={({ field }) => (
+              <Input {...field} aria-label={dutyLabels.editDutyModal.nameAriaLabel} maxLength={DUTY_NAME_MAX_LENGTH} />
+            )}
           />
         </Form.Item>
       </form>

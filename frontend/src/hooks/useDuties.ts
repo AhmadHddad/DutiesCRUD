@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 import { createDuty, deleteDuty, getDutyPage, updateDuty } from '../api/dutiesApi';
+import { dutyLabels } from '../i18n/dutiesLabels';
 
 const DUTIES_QUERY_KEY = ['duties'] as const;
 const DUTIES_PAGE_LIMIT = 50;
@@ -123,5 +124,5 @@ function toUserMessage(error: unknown): string {
     return error.message;
   }
 
-  return 'An unexpected error occurred.';
+  return dutyLabels.errors.unexpected;
 }

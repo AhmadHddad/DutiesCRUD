@@ -6,6 +6,12 @@ import { AxiosError, AxiosHeaders } from 'axios';
 
 import App from './App';
 import { createDuty, deleteDuty, getDutyPage, updateDuty } from './api/dutiesApi';
+import {
+  dutyLabels,
+  formatDeleteDutyAriaLabel,
+  formatEditDutyAriaLabel,
+  formatLoadedCountLabel
+} from './i18n/dutiesLabels';
 
 jest.mock('./api/dutiesApi', () => {
   return {
@@ -50,7 +56,7 @@ describe('App', () => {
     renderApp();
 
     expect(await screen.findByText('Plan release')).toBeInTheDocument();
-    expect(screen.getAllByText('1 of 1 loaded')).toHaveLength(2);
+    expect(screen.getAllByText(formatLoadedCountLabel(1, 1))).toHaveLength(2);
   });
 
   it('validates the create form', async () => {
@@ -58,8 +64,8 @@ describe('App', () => {
 
     renderApp();
 
-    await screen.findByText('No duties yet');
-    await user.click(screen.getByRole('button', { name: /add duty/i }));
+    await screen.findByText(dutyLabels.dutiesTable.emptyState);
+    await user.click(screen.getByRole('button', { name: dutyLabels.createDutyForm.submitButton }));
 
     expect(await screen.findByText('Duty name is required.')).toBeInTheDocument();
     expect(mockedCreateDuty).not.toHaveBeenCalled();
@@ -70,9 +76,9 @@ describe('App', () => {
 
     renderApp();
 
-    await screen.findByText('No duties yet');
-    await user.type(screen.getByRole('textbox', { name: /new duty name/i }), 'Write README');
-    await user.click(screen.getByRole('button', { name: /add duty/i }));
+    await screen.findByText(dutyLabels.dutiesTable.emptyState);
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), 'Write README');
+    await user.click(screen.getByRole('button', { name: dutyLabels.createDutyForm.submitButton }));
 
     expect(mockedCreateDuty).toHaveBeenCalledWith({ name: 'Write README' });
     expect(await screen.findByText('Write README')).toBeInTheDocument();
@@ -85,13 +91,13 @@ describe('App', () => {
     renderApp();
 
     await screen.findByText('Old name');
-    await user.click(screen.getByRole('button', { name: /edit old name/i }));
+    await user.click(screen.getByRole('button', { name: formatEditDutyAriaLabel('Old name') }));
 
-    const dialog = await screen.findByRole('dialog', { name: /edit duty/i });
-    const input = within(dialog).getByRole('textbox', { name: /duty name/i });
+    const dialog = await screen.findByRole('dialog', { name: dutyLabels.editDutyModal.title });
+    const input = within(dialog).getByRole('textbox', { name: dutyLabels.editDutyModal.nameAriaLabel });
     await user.clear(input);
     await user.type(input, 'New name');
-    await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
+    await user.click(within(dialog).getByRole('button', { name: dutyLabels.editDutyModal.saveButton }));
 
     await waitFor(() => expect(mockedUpdateDuty).toHaveBeenCalledWith('1', { name: 'New name' }));
     expect(await screen.findByText('New name')).toBeInTheDocument();
@@ -104,12 +110,12 @@ describe('App', () => {
     renderApp();
 
     await screen.findByText('Old name');
-    await user.click(screen.getByRole('button', { name: /edit old name/i }));
+    await user.click(screen.getByRole('button', { name: formatEditDutyAriaLabel('Old name') }));
 
-    const dialog = await screen.findByRole('dialog', { name: /edit duty/i });
-    const input = within(dialog).getByRole('textbox', { name: /duty name/i });
+    const dialog = await screen.findByRole('dialog', { name: dutyLabels.editDutyModal.title });
+    const input = within(dialog).getByRole('textbox', { name: dutyLabels.editDutyModal.nameAriaLabel });
     await user.clear(input);
-    await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
+    await user.click(within(dialog).getByRole('button', { name: dutyLabels.editDutyModal.saveButton }));
 
     expect(await within(dialog).findByText('Duty name is required.')).toBeInTheDocument();
     expect(mockedUpdateDuty).not.toHaveBeenCalled();
@@ -122,8 +128,8 @@ describe('App', () => {
     renderApp();
 
     await screen.findByText('Remove me');
-    await user.click(screen.getByRole('button', { name: /delete remove me/i }));
-    await user.click(await screen.findByRole('button', { name: /^delete$/i }));
+    await user.click(screen.getByRole('button', { name: formatDeleteDutyAriaLabel('Remove me') }));
+    await user.click(await screen.findByRole('button', { name: dutyLabels.dutiesTable.deleteConfirmOk }));
 
     await waitFor(() => expect(mockedDeleteDuty).toHaveBeenCalledWith('1'));
     await waitFor(() => expect(screen.queryByText('Remove me')).not.toBeInTheDocument());
@@ -155,7 +161,7 @@ describe('App', () => {
     fireEvent.scroll(scrollBody);
 
     await waitFor(() => expect(mockedGetDutyPage).toHaveBeenCalledWith({ limit: 50, offset: 50 }));
-    await waitFor(() => expect(screen.getAllByText('55 of 55 loaded')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText(formatLoadedCountLabel(55, 55))).toHaveLength(2));
   });
 
   it('shows API errors', async () => {
