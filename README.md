@@ -9,10 +9,6 @@ The repository contains two independent TypeScript projects:
 
 ## Screenshots
 
-Shared duties list:
-
-![Duties list](frontend/screenshots/duties-list.png)
-
 Create a new duty:
 
 ![Create duty](frontend/screenshots/duties-add.png)
