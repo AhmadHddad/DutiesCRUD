@@ -11,6 +11,11 @@ import {
 } from './duty.validation';
 
 describe('duty validation', () => {
+  it('rejects request bodies that are not JSON objects', () => {
+    expect(() => parseDutyInput(null)).toThrow('Request body must be a JSON object.');
+    expect(() => parseDutyInput([])).toThrow('Request body must be a JSON object.');
+  });
+
   it('trims valid duty names', () => {
     expect(parseDutyInput({ name: '  Prepare sprint review  ' })).toEqual({
       name: 'Prepare sprint review'
@@ -40,6 +45,16 @@ describe('duty validation', () => {
   it('accepts text that looks like HTML as plain text', () => {
     expect(parseDutyInput({ name: '<script>alert(1)</script>' })).toEqual({
       name: '<script>alert(1)</script>'
+    });
+  });
+
+  it('rejects non-string duty names', () => {
+    expect(() => parseDutyInput({ name: 123 })).toThrow('Duty name is required.');
+  });
+
+  it('ignores unexpected body fields while validating the duty name', () => {
+    expect(parseDutyInput({ name: '  Prepare report  ', extra: 'ignored' })).toEqual({
+      name: 'Prepare report'
     });
   });
 
@@ -90,5 +105,25 @@ describe('duty validation', () => {
 
   it('rejects non-integer pagination values', () => {
     expect(() => parseDutyListQuery({ limit: '1.5' })).toThrow('Limit must be an integer.');
+    expect(() => parseDutyListQuery({ offset: '1.5' })).toThrow('Offset must be an integer.');
+  });
+
+  it('rejects negative offsets', () => {
+    expect(() => parseDutyListQuery({ offset: '-1' })).toThrow('Offset must be at least 0.');
+  });
+
+  it('uses the first value for duplicate pagination parameters', () => {
+    expect(parseDutyListQuery({ limit: ['1', '2'] })).toEqual({
+      limit: 1,
+      offset: 0
+    });
+    expect(parseDutyListQuery({ offset: ['0', '1'] })).toEqual({
+      limit: DUTY_LIST_DEFAULT_LIMIT,
+      offset: 0
+    });
+  });
+
+  it('rejects whitespace-only pagination values', () => {
+    expect(() => parseDutyListQuery({ limit: '   ' })).toThrow('Limit must be an integer.');
   });
 });

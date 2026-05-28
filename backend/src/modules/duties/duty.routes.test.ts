@@ -1,3 +1,4 @@
+import { afterEach, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { createApp } from '../../app';
@@ -77,6 +78,28 @@ describe('duty routes', () => {
 
     expect(response.body.error).toMatchObject({
       code: 'VALIDATION_ERROR'
+    });
+  });
+
+  it('uses the first value for duplicate pagination parameters', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([
+        { id: FIRST_ID, name: 'Plan release' },
+        { id: SECOND_ID, name: 'Check backups' }
+      ]),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app).get('/api/duties?limit=1&limit=2').expect(200);
+
+    expect(response.body).toEqual({
+      data: {
+        items: [{ id: FIRST_ID, name: 'Plan release' }],
+        total: 2,
+        limit: 1,
+        offset: 0,
+        nextOffset: 1
+      }
     });
   });
 
@@ -197,6 +220,38 @@ describe('duty routes', () => {
         message: 'Duty name is required.',
         requestId: 'test-request-id'
       }
+    });
+  });
+
+  it('returns validation errors for non-string duty names', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService(),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app).post('/api/duties').send({ name: 123 }).expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Duty name is required.'
+    });
+  });
+
+  it('returns validation errors for non-object request bodies', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService(),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app)
+      .post('/api/duties')
+      .set('Content-Type', 'application/json')
+      .send('[]')
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Request body must be a JSON object.'
     });
   });
 

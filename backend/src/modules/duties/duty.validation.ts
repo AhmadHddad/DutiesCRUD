@@ -8,6 +8,10 @@ export const DUTY_LIST_MAX_LIMIT = 100;
 
 export { DUTY_NAME_MAX_LENGTH };
 
+/**
+ * Validates a duty request body and returns the normalized input used by the service layer.
+ * Example: `parseDutyInput({ name: '  Review PR  ' })` returns `{ name: 'Review PR' }`.
+ */
 export function parseDutyInput(body: unknown): DutyInput {
   if (!isRecord(body)) {
     throw new ValidationError('Request body must be a JSON object.');
@@ -18,6 +22,10 @@ export function parseDutyInput(body: unknown): DutyInput {
   };
 }
 
+/**
+ * Validates a route id and normalizes surrounding whitespace.
+ * Example: `parseDutyId(' 42 ')` returns `'42'`.
+ */
 export function parseDutyId(id: string | undefined): string {
   if (id === undefined || id.trim() === '') {
     throw new ValidationError('Duty id is required.');
@@ -31,6 +39,10 @@ export function parseDutyId(id: string | undefined): string {
   return normalized;
 }
 
+/**
+ * Validates supported duty list query parameters and applies pagination defaults.
+ * Example: `parseDutyListQuery({ limit: ['25', '50'], offset: '3' })` uses the first `limit` value and returns `{ limit: 25, offset: 3 }`.
+ */
 export function parseDutyListQuery(query: unknown): DutyListQuery {
   if (!isRecord(query)) {
     throw new ValidationError('Query parameters must be a JSON object.');
@@ -42,10 +54,18 @@ export function parseDutyListQuery(query: unknown): DutyListQuery {
   };
 }
 
+/**
+ * Ensures a parsed value is a plain object before property access.
+ * Example: `isRecord({ name: 'Plan release' })` returns `true`, while `isRecord([])` returns `false`.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Validates and trims a duty name while preserving literal text such as `<script>` or `5 < 2`.
+ * Example: `parseDutyName('  learn about <a>  ')` returns `'learn about <a>'`.
+ */
 function parseDutyName(value: unknown): string {
   if (typeof value !== 'string') {
     throw new ValidationError('Duty name is required.');
@@ -63,6 +83,10 @@ function parseDutyName(value: unknown): string {
   return normalized;
 }
 
+/**
+ * Parses one integer query value, applies defaults, and enforces inclusive min/max bounds.
+ * Example: `parseIntegerQueryValue(['25', '50'], 50, 1, 100, 'limit')` uses the first value and returns `25`.
+ */
 function parseIntegerQueryValue(
   value: unknown,
   defaultValue: number,
@@ -70,16 +94,17 @@ function parseIntegerQueryValue(
   max: number,
   fieldName: string
 ): number {
-  if (value === undefined) {
+  const rawValue = getFirstQueryValue(value);
+  if (rawValue === undefined) {
     return defaultValue;
   }
 
-  const rawValue = getSingleQueryValue(value, fieldName);
-  if (!/^-?\d+$/.test(rawValue)) {
+  const normalizedValue = rawValue.trim();
+  const parsedValue = Number(normalizedValue);
+  if (normalizedValue === '' || !Number.isInteger(parsedValue)) {
     throw new ValidationError(`${capitalize(fieldName)} must be an integer.`);
   }
 
-  const parsedValue = Number(rawValue);
   if (parsedValue < min) {
     throw new ValidationError(`${capitalize(fieldName)} must be at least ${min}.`);
   }
@@ -91,18 +116,30 @@ function parseIntegerQueryValue(
   return parsedValue;
 }
 
-function getSingleQueryValue(value: unknown, fieldName: string): string {
+/**
+ * Normalizes Express query values and lets repeated params fall back to the first item.
+ * Example: `getFirstQueryValue(['1', '2'])` returns `'1'`.
+ */
+function getFirstQueryValue(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
   if (Array.isArray(value)) {
-    throw new ValidationError(`${capitalize(fieldName)} must be provided once.`);
+    return getFirstQueryValue(value[0]);
   }
 
   if (typeof value !== 'string') {
-    throw new ValidationError(`${capitalize(fieldName)} must be a string.`);
+    throw new ValidationError('Query parameter must be a string.');
   }
 
-  return value.trim();
+  return value;
 }
 
+/**
+ * Uppercases the first character so validation messages can use field names like `Limit` and `Offset`.
+ * Example: `capitalize('offset')` returns `'Offset'`.
+ */
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
