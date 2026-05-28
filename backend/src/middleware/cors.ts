@@ -32,6 +32,9 @@ function resolveAllowedOrigin(allowedOrigin: string, requestOrigin: string | und
     return allowedOrigin;
   }
 
+  // Some non-browser requests do not send an Origin header. In that case we
+  // still return the configured origin so callers get a consistent allow-origin
+  // response instead of being treated as an explicit cross-origin mismatch.
   if (requestOrigin === undefined) {
     return allowedOrigin;
   }

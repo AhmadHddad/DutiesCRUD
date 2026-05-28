@@ -19,6 +19,8 @@ server.listen(config.port, () => {
 function shutdown(signal: NodeJS.Signals): void {
   logger.info('shutdown_started', { signal });
 
+  // Stop accepting new connections, close shared resources, and force-exit if
+  // cleanup hangs so deploys and local shutdowns do not wait indefinitely.
   server.close((error?: Error) => {
     closePool()
       .then(() => {

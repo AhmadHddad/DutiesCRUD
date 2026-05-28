@@ -24,12 +24,14 @@ export function createDutyWriteRateLimiter(config: AppConfig) {
 }
 
 function createRateLimiter(windowMs: number, limit: number, message?: string) {
+  // Route 429 handling through the shared error pipeline so rate limits use the
+  // same JSON envelope and request-id-aware responses as the rest of the API.
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
-    handler(req: Request, _res: Response, next: NextFunction, _options: Options) {
+    handler(_req: Request, _res: Response, next: NextFunction, _options: Options) {
       next(new RateLimitError(message));
     }
   });

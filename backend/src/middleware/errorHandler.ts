@@ -12,6 +12,8 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
   const requestId = getRequestId(req);
   const appError = toAppError(error);
 
+  // Only server-side failures are logged here. Client-facing messages and
+  // headers still flow from AppError so the API keeps one consistent envelope.
   if (appError.statusCode >= 500) {
     logger.error('request_failed', {
       requestId,

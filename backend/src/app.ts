@@ -24,12 +24,15 @@ export function createApp(dependencies: AppDependencies = {}) {
   const healthCheck = dependencies.healthCheck ?? defaultHealthCheck;
   const dutyWriteRateLimiter = createDutyWriteRateLimiter(config);
 
+  // Middleware order is intentional so request IDs and access logs are available
+  // before security, CORS, parsing, and route-level error handling run.
   app.use(requestIdMiddleware);
   app.use(requestLogger);
   app.use(createSecurityMiddleware());
   app.use(createCorsMiddleware(config.corsOrigin));
 
-  // prevent request body size from exceeding 64kb to prevent api abuse.
+  // Keep JSON bodies small enough for this API's simple payloads and to reduce
+  // abuse risk from oversized requests.
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', createApiRateLimiter(config));
 

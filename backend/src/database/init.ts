@@ -7,6 +7,8 @@ import { logger } from '../utils/logger';
 
 async function initDatabase(): Promise<void> {
   const config = loadConfig();
+  // This bootstrap script uses a temporary pool, applies the canonical schema,
+  // and exits instead of sharing the long-lived app pool lifecycle.
   const pool = new Pool({ connectionString: config.databaseUrl });
 
   try {
