@@ -1,3 +1,5 @@
+import { describe, expect, it } from '@jest/globals';
+
 import { ValidationError } from '../../errors/appErrors';
 import {
   DUTY_LIST_DEFAULT_LIMIT,
@@ -82,7 +84,11 @@ describe('duty validation', () => {
 
   it('rejects invalid pagination values', () => {
     expect(() => parseDutyListQuery({ limit: String(DUTY_LIST_MAX_LIMIT + 1), offset: '-1' })).toThrow(
-      `Too big: expected number to be <=${DUTY_LIST_MAX_LIMIT}`
+      `Limit must be at most ${DUTY_LIST_MAX_LIMIT}.`
     );
+  });
+
+  it('rejects non-integer pagination values', () => {
+    expect(() => parseDutyListQuery({ limit: '1.5' })).toThrow('Limit must be an integer.');
   });
 });

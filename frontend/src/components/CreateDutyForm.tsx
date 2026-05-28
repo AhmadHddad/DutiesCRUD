@@ -1,11 +1,9 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusOutlined } from '@ant-design/icons';
 import type { DutyInput as DutyFormValues } from '@nexplore-duties/contracts';
 import { Button, Form, Input } from 'antd';
-import { Controller, useForm } from 'react-hook-form';
 
-import { DUTY_NAME_MAX_LENGTH, dutyFormSchema } from './dutySchema';
 import { dutyLabels } from '../i18n/dutiesLabels';
+import { DUTY_NAME_MAX_LENGTH, getDutyNameError, normalizeDutyName } from './dutySchema';
 
 interface CreateDutyFormProps {
   isSubmitting: boolean;
@@ -13,41 +11,39 @@ interface CreateDutyFormProps {
 }
 
 export function CreateDutyForm({ isSubmitting, onCreate }: CreateDutyFormProps) {
-  const {
-    control,
-    formState: { errors },
-    handleSubmit,
-    reset
-  } = useForm<DutyFormValues>({
-    resolver: zodResolver(dutyFormSchema),
-    defaultValues: {
-      name: ''
-    }
-  });
+  const [form] = Form.useForm<DutyFormValues>();
 
   async function handleFinish(values: DutyFormValues): Promise<void> {
-    await onCreate(values.name);
-    reset();
+    await onCreate(normalizeDutyName(values.name));
+    form.resetFields();
   }
 
   return (
-    <form className="create-duty-form" onSubmit={handleSubmit(handleFinish)}>
+    <Form
+      className="create-duty-form"
+      form={form}
+      initialValues={{ name: '' }}
+      onFinish={(values) => void handleFinish(values)}
+    >
       <Form.Item
         className="create-duty-form__input"
-        help={errors.name?.message}
-        validateStatus={errors.name ? 'error' : undefined}
+        name="name"
+        rules={[
+          {
+            validator: async (_, value: string | undefined) => {
+              const error = getDutyNameError(value ?? '');
+
+              if (error !== null) {
+                throw new Error(error);
+              }
+            }
+          }
+        ]}
       >
-        <Controller
-          control={control}
-          name="name"
-          render={({ field }) => (
-            <Input
-              {...field}
-              aria-label={dutyLabels.createDutyForm.nameAriaLabel}
-              maxLength={DUTY_NAME_MAX_LENGTH}
-              placeholder={dutyLabels.createDutyForm.namePlaceholder}
-            />
-          )}
+        <Input
+          aria-label={dutyLabels.createDutyForm.nameAriaLabel}
+          maxLength={DUTY_NAME_MAX_LENGTH}
+          placeholder={dutyLabels.createDutyForm.namePlaceholder}
         />
       </Form.Item>
       <Form.Item className="create-duty-form__button">
@@ -55,6 +51,6 @@ export function CreateDutyForm({ isSubmitting, onCreate }: CreateDutyFormProps) 
           {dutyLabels.createDutyForm.submitButton}
         </Button>
       </Form.Item>
-    </form>
+    </Form>
   );
 }

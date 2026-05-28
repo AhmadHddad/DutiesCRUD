@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Duty, DutyInput, DutyListPage, DutyListQuery } from '@nexplore-duties/contracts';
+import { DUTY_NAME_MAX_LENGTH, type Duty, type DutyInput, type DutyListPage, type DutyListQuery } from '@nexplore-duties/contracts';
 import { AxiosError, AxiosHeaders } from 'axios';
 
 import App from './App';
@@ -153,6 +153,35 @@ describe('App', () => {
     expect(await screen.findByText('Write README')).toBeInTheDocument();
   });
 
+  it('trims whitespace before creating a duty', async () => {
+    const user = userEvent.setup();
+
+    renderApp();
+
+    await screen.findByText(dutyLabels.dutiesTable.emptyState);
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), '  Write README  ');
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
+
+    expect(mockedCreateDuty).toHaveBeenCalledWith({ name: 'Write README' });
+    expect(await screen.findByText('Write README')).toBeInTheDocument();
+  });
+
+  it('rejects over-length names in the create form', async () => {
+    const user = userEvent.setup();
+    const overLengthName = 'a'.repeat(DUTY_NAME_MAX_LENGTH + 1);
+
+    renderApp();
+
+    await screen.findByText(dutyLabels.dutiesTable.emptyState);
+    fireEvent.change(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), {
+      target: { value: overLengthName }
+    });
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
+
+    expect(await screen.findByText(`Duty name must be ${DUTY_NAME_MAX_LENGTH} characters or fewer.`)).toBeInTheDocument();
+    expect(mockedCreateDuty).not.toHaveBeenCalled();
+  });
+
   it('creates a duty with angle brackets and renders it as plain text', async () => {
     const user = userEvent.setup();
     const name = 'learn about <a> and 5 < 2 and 3>2';
@@ -227,6 +256,29 @@ describe('App', () => {
     await user.click(within(dialog).getByRole('button', { name: dutyLabels.editDutyModal.saveButton }));
 
     expect(await within(dialog).findByText('Duty name is required.')).toBeInTheDocument();
+    expect(mockedUpdateDuty).not.toHaveBeenCalled();
+  });
+
+  it('rejects over-length names in the edit form', async () => {
+    const user = userEvent.setup();
+    const overLengthName = 'a'.repeat(DUTY_NAME_MAX_LENGTH + 1);
+    dutiesStore = [{ id: '1', name: 'Old name' }];
+    dutyEtags['1'] = '"duty-1-v1"';
+
+    renderApp();
+
+    await screen.findByText('Old name');
+    await user.click(screen.getByRole('button', { name: formatEditDutyAriaLabel('Old name') }));
+
+    const dialog = await screen.findByRole('dialog', { name: dutyLabels.editDutyModal.title });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: dutyLabels.editDutyModal.nameAriaLabel }), {
+      target: { value: overLengthName }
+    });
+    await user.click(within(dialog).getByRole('button', { name: dutyLabels.editDutyModal.saveButton }));
+
+    expect(
+      await within(dialog).findByText(`Duty name must be ${DUTY_NAME_MAX_LENGTH} characters or fewer.`)
+    ).toBeInTheDocument();
     expect(mockedUpdateDuty).not.toHaveBeenCalled();
   });
 
@@ -396,6 +448,38 @@ describe('App', () => {
 
     expect(await screen.findByText('Backend unavailable')).toBeInTheDocument();
   });
+
+  it('disables refresh while duties are refetching', async () => {
+    const user = userEvent.setup();
+    const refetchRequest = createDeferred<DutyListPage>();
+    let getDutyPageCallCount = 0;
+    dutiesStore = [{ id: '1', name: 'Plan release' }];
+    dutyEtags['1'] = '"duty-1-v1"';
+
+    mockedGetDutyPage.mockImplementation(async ({ limit, offset }: DutyListQuery) => {
+      getDutyPageCallCount += 1;
+
+      if (getDutyPageCallCount === 1) {
+        return createPage(limit, offset);
+      }
+
+      return refetchRequest.promise;
+    });
+
+    renderApp();
+
+    await screen.findByText('Plan release');
+    const refreshButton = screen.getByRole('button', { name: dutyLabels.app.refreshAriaLabel });
+    expect(refreshButton).not.toBeDisabled();
+
+    await user.click(refreshButton);
+
+    await waitFor(() => expect(refreshButton).toBeDisabled());
+
+    refetchRequest.resolve(createPage(50, 0));
+
+    await waitFor(() => expect(refreshButton).not.toBeDisabled());
+  });
 });
 
 function createPage(limit: number, offset: number): DutyListPage {
@@ -435,4 +519,19 @@ function labelAtEnd(label: string): RegExp {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return {
+    promise,
+    resolve,
+    reject
+  };
 }

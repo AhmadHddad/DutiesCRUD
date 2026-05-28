@@ -1,5 +1,4 @@
 import { DUTY_NAME_MAX_LENGTH } from '@nexplore-duties/contracts';
-import { z } from 'zod';
 
 import { ValidationError } from '../../errors/appErrors';
 import { DutyInput, DutyListQuery } from './duty.types';
@@ -9,31 +8,14 @@ export const DUTY_LIST_MAX_LIMIT = 100;
 
 export { DUTY_NAME_MAX_LENGTH };
 
-const dutyNameSchema = z
-  .string()
-  .trim()
-  .min(1, 'Duty name is required.')
-  .max(DUTY_NAME_MAX_LENGTH, `Duty name must be ${DUTY_NAME_MAX_LENGTH} characters or fewer.`);
-
-const dutyListQuerySchema: z.ZodType<DutyListQuery> = z.object({
-  limit: z.coerce.number().int().min(1).max(DUTY_LIST_MAX_LIMIT).default(DUTY_LIST_DEFAULT_LIMIT),
-  offset: z.coerce.number().int().min(0).default(0)
-});
-
-export const dutyInputSchema = z.object({
-  name: dutyNameSchema
-});
-
 export function parseDutyInput(body: unknown): DutyInput {
   if (!isRecord(body)) {
     throw new ValidationError('Request body must be a JSON object.');
   }
 
-  if (typeof body.name !== 'string') {
-    throw new ValidationError('Duty name is required.');
-  }
-
-  return parseWithValidation<DutyInput>(dutyInputSchema as z.ZodType<DutyInput>, body);
+  return {
+    name: parseDutyName(body.name)
+  };
 }
 
 export function parseDutyId(id: string | undefined): string {
@@ -54,19 +36,73 @@ export function parseDutyListQuery(query: unknown): DutyListQuery {
     throw new ValidationError('Query parameters must be a JSON object.');
   }
 
-  return parseWithValidation<DutyListQuery>(dutyListQuerySchema as z.ZodType<DutyListQuery>, query);
+  return {
+    limit: parseIntegerQueryValue(query.limit, DUTY_LIST_DEFAULT_LIMIT, 1, DUTY_LIST_MAX_LIMIT, 'limit'),
+    offset: parseIntegerQueryValue(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, 'offset')
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseWithValidation<T>(schema: z.ZodType<T>, value: unknown): T {
-  const result = schema.safeParse(value);
-
-  if (!result.success) {
-    throw new ValidationError(result.error.issues[0]?.message ?? 'Invalid request.');
+function parseDutyName(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new ValidationError('Duty name is required.');
   }
 
-  return result.data;
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    throw new ValidationError('Duty name is required.');
+  }
+
+  if (normalized.length > DUTY_NAME_MAX_LENGTH) {
+    throw new ValidationError(`Duty name must be ${DUTY_NAME_MAX_LENGTH} characters or fewer.`);
+  }
+
+  return normalized;
+}
+
+function parseIntegerQueryValue(
+  value: unknown,
+  defaultValue: number,
+  min: number,
+  max: number,
+  fieldName: string
+): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  const rawValue = getSingleQueryValue(value, fieldName);
+  if (!/^-?\d+$/.test(rawValue)) {
+    throw new ValidationError(`${capitalize(fieldName)} must be an integer.`);
+  }
+
+  const parsedValue = Number(rawValue);
+  if (parsedValue < min) {
+    throw new ValidationError(`${capitalize(fieldName)} must be at least ${min}.`);
+  }
+
+  if (parsedValue > max) {
+    throw new ValidationError(`${capitalize(fieldName)} must be at most ${max}.`);
+  }
+
+  return parsedValue;
+}
+
+function getSingleQueryValue(value: unknown, fieldName: string): string {
+  if (Array.isArray(value)) {
+    throw new ValidationError(`${capitalize(fieldName)} must be provided once.`);
+  }
+
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${capitalize(fieldName)} must be a string.`);
+  }
+
+  return value.trim();
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

@@ -19,6 +19,7 @@ export default function App() {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isRefreshing,
     isMutating,
     loadDuties,
     loadMore,
@@ -31,9 +32,17 @@ export default function App() {
     await addDuty(name);
   }
 
+  function handleRefresh(): void {
+    void loadDuties();
+  }
+
+  function handleCloseEditor(): void {
+    setEditingDutyId(null);
+  }
+
   return (
     <Layout className="app-shell">
-      <DutiesPageHeader isRefreshing={isLoading} onRefresh={() => void loadDuties()} />
+      <DutiesPageHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} />
       <Content className="app-content">
         <CreateDutySection isSubmitting={isMutating} onCreate={handleCreate} />
 
@@ -52,7 +61,7 @@ export default function App() {
           total={total}
         />
       </Content>
-      <DutyEditorManager dutyId={editingDutyId} onClose={() => setEditingDutyId(null)} />
+      <DutyEditorManager dutyId={editingDutyId} onClose={handleCloseEditor} />
     </Layout>
   );
 }

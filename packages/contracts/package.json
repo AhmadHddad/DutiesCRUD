@@ -2,7 +2,7 @@
   "name": "@nexplore-duties/contracts",
   "private": true,
   "version": "1.0.0",
-  "description": "Shared duties contracts and validation schemas.",
+  "description": "Shared duties contracts and constants.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -12,9 +12,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build"
-  },
-  "dependencies": {
-    "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^5.5.3"

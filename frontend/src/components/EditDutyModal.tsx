@@ -1,10 +1,8 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import type { Duty, DutyInput as DutyFormValues } from '@nexplore-duties/contracts';
 import { Alert, Button, Form, Input, Modal, Spin } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 
-import { DUTY_NAME_MAX_LENGTH, dutyFormSchema } from './dutySchema';
+import { DUTY_NAME_MAX_LENGTH, getDutyNameError, normalizeDutyName } from './dutySchema';
 import { dutyLabels } from '../i18n/dutiesLabels';
 
 interface EditDutyModalProps {
@@ -32,26 +30,24 @@ function EditDutyModal({
   onRefresh,
   onSave
 }: EditDutyModalProps) {
-  const {
-    control,
-    formState: { errors },
-    handleSubmit,
-    reset
-  } = useForm<DutyFormValues>({
-    resolver: zodResolver(dutyFormSchema),
-    defaultValues: {
-      name: duty?.name ?? ''
-    }
-  });
+  const [form] = Form.useForm<DutyFormValues>();
 
   useEffect(() => {
-    reset({
-      name: open && duty !== null ? duty.name : ''
-    });
-  }, [duty, open, reset]);
+    if (!open || duty === null) {
+      return;
+    }
+
+    form.setFields([
+      {
+        name: 'name',
+        value: duty.name,
+        errors: []
+      }
+    ]);
+  }, [duty, form, open]);
 
   async function handleFinish(values: DutyFormValues): Promise<void> {
-    await onSave(values.name);
+    await onSave(normalizeDutyName(values.name));
   }
 
   const isSaveDisabled = duty === null || isLoading || error !== null;
@@ -63,7 +59,7 @@ function EditDutyModal({
       okText={dutyLabels.editDutyModal.saveButton}
       okButtonProps={{ disabled: isSaveDisabled }}
       onCancel={onCancel}
-      onOk={() => void handleSubmit(handleFinish)()}
+      onOk={() => void form.submit()}
       open={open}
       title={dutyLabels.editDutyModal.title}
     >
@@ -87,23 +83,27 @@ function EditDutyModal({
           <div>{dutyLabels.editDutyModal.loading}</div>
         </div>
       ) : null}
-      {duty !== null ? (
-        <form id="edit-duty-form" onSubmit={handleSubmit(handleFinish)}>
+      <Form form={form} id="edit-duty-form" layout="vertical" onFinish={(values) => void handleFinish(values)}>
+        {duty !== null ? (
           <Form.Item
-            help={errors.name?.message}
             label={dutyLabels.editDutyModal.nameLabel}
-            validateStatus={errors.name ? 'error' : undefined}
+            name="name"
+            rules={[
+              {
+                validator: async (_, value: string | undefined) => {
+                  const error = getDutyNameError(value ?? '');
+
+                  if (error !== null) {
+                    throw new Error(error);
+                  }
+                }
+              }
+            ]}
           >
-            <Controller
-              control={control}
-              name="name"
-              render={({ field }) => (
-                <Input {...field} aria-label={dutyLabels.editDutyModal.nameAriaLabel} maxLength={DUTY_NAME_MAX_LENGTH} />
-              )}
-            />
+            <Input aria-label={dutyLabels.editDutyModal.nameAriaLabel} maxLength={DUTY_NAME_MAX_LENGTH} />
           </Form.Item>
-        </form>
-      ) : null}
+        ) : null}
+      </Form>
     </Modal>
   );
 }

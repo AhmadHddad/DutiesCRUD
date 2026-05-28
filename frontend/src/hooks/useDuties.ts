@@ -44,6 +44,7 @@ export function useDuties() {
   const duties = useMemo(() => dutiesQuery.data?.pages.flatMap((page) => page.items) ?? [], [dutiesQuery.data?.pages]);
   const total = dutiesQuery.data?.pages[0]?.total ?? 0;
   const loadedCount = duties.length;
+  const isRefreshing = dutiesQuery.isFetching && !dutiesQuery.isLoading && !dutiesQuery.isFetchingNextPage;
 
   const addDuty = useCallback(
     async (name: string) => addDutyMutation.mutateAsync({ name }),
@@ -75,6 +76,7 @@ export function useDuties() {
     total,
     loadedCount,
     isLoading: dutiesQuery.isLoading,
+    isRefreshing,
     isFetchingNextPage: dutiesQuery.isFetchingNextPage,
     hasNextPage: dutiesQuery.hasNextPage ?? false,
     isMutating: addDutyMutation.isPending || removeDutyMutation.isPending,
