@@ -28,8 +28,12 @@ export const dutyLabels = {
   editDutyModal: {
     title: 'Edit duty',
     saveButton: 'Save changes',
+    refreshButton: 'Refresh latest',
     nameLabel: 'Duty name',
-    nameAriaLabel: 'Duty name'
+    nameAriaLabel: 'Duty name',
+    loading: 'Loading the latest duty...',
+    loadError: 'Unable to load the latest duty.',
+    staleConflict: 'This duty changed on the server. The form has been refreshed with the latest value.'
   },
   errors: {
     unexpected: 'An unexpected error occurred.'

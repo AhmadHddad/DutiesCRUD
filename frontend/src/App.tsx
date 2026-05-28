@@ -1,10 +1,10 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Alert, Button, Layout, Spin, Tooltip, Typography } from 'antd';
 import { lazy, Suspense, useState } from 'react';
-import type { Duty } from '@nexplore-duties/contracts';
 
 import { CreateDutyForm } from './components/CreateDutyForm';
 import { DutiesTable } from './components/DutiesTable';
+import { useDutyEditor } from './hooks/useDutyEditor';
 import { useDuties } from './hooks/useDuties';
 import { dutyLabels, formatLoadedCountLabel } from './i18n/dutiesLabels';
 import './App.css';
@@ -25,22 +25,33 @@ export default function App() {
     loadDuties,
     loadMore,
     addDuty,
-    saveDuty,
     removeDuty
   } = useDuties();
-  const [editingDuty, setEditingDuty] = useState<Duty | null>(null);
+  const [editingDutyId, setEditingDutyId] = useState<string | null>(null);
+  const {
+    duty: editingDuty,
+    error: editError,
+    conflictMessage,
+    isLoading: isEditLoading,
+    isRefreshing: isEditRefreshing,
+    isSaving,
+    refreshDuty,
+    saveDuty
+  } = useDutyEditor({
+    dutyId: editingDutyId
+  });
 
   async function handleCreate(name: string): Promise<void> {
     await addDuty(name);
   }
 
-  async function handleSave(name: string): Promise<void> {
-    if (editingDuty === null) {
-      return;
+  async function handleSave(name: string): Promise<boolean> {
+    const didSave = await saveDuty(name);
+    if (didSave) {
+      setEditingDutyId(null);
     }
 
-    await saveDuty(editingDuty.id, name);
-    setEditingDuty(null);
+    return didSave;
   }
 
   return (
@@ -90,18 +101,23 @@ export default function App() {
             isMutating={isMutating}
             loadedCount={loadedCount}
             onDelete={removeDuty}
-            onEdit={setEditingDuty}
+            onEdit={setEditingDutyId}
             onLoadMore={loadMore}
             total={total}
           />
         </section>
       </Content>
-      {editingDuty !== null ? (
+      {editingDutyId !== null ? (
         <Suspense fallback={<Spin fullscreen size="large" />}>
           <EditDutyModal
+            conflictMessage={conflictMessage}
             duty={editingDuty}
-            isSaving={isMutating}
-            onCancel={() => setEditingDuty(null)}
+            error={editError}
+            isLoading={isEditLoading}
+            isRefreshing={isEditRefreshing}
+            isSaving={isSaving}
+            onCancel={() => setEditingDutyId(null)}
+            onRefresh={() => void refreshDuty()}
             onSave={handleSave}
             open
           />

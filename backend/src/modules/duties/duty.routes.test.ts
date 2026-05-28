@@ -1,8 +1,9 @@
 import request from 'supertest';
 
 import { createApp } from '../../app';
-import { NotFoundError } from '../../errors/appErrors';
-import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyServiceContract } from './duty.types';
+import { NotFoundError, PreconditionFailedError } from '../../errors/appErrors';
+import { createDutyEtag } from './duty.etag';
+import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRecord, DutyServiceContract } from './duty.types';
 
 const FIRST_ID = '1';
 const SECOND_ID = '2';
@@ -95,6 +96,20 @@ describe('duty routes', () => {
     });
   });
 
+  it('returns one duty with an ETag header', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Plan release' }]),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app).get(`/api/duties/${FIRST_ID}`).expect(200);
+
+    expect(response.headers.etag).toBe(createDutyEtag(FIRST_ID, '1'));
+    expect(response.body).toEqual({
+      data: { id: FIRST_ID, name: 'Plan release' }
+    });
+  });
+
   it('updates an existing duty with plain-text names that look like HTML', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Old name' }]),
@@ -103,11 +118,55 @@ describe('duty routes', () => {
 
     const response = await request(app)
       .put(`/api/duties/${FIRST_ID}`)
+      .set('If-Match', createDutyEtag(FIRST_ID, '1'))
       .send({ name: '<b>New name</b>' })
       .expect(200);
 
+    expect(response.headers.etag).toBe(createDutyEtag(FIRST_ID, '2'));
     expect(response.body).toEqual({
       data: { id: FIRST_ID, name: '<b>New name</b>' }
+    });
+  });
+
+  it('requires If-Match for updates', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Old name' }]),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app)
+      .put(`/api/duties/${FIRST_ID}`)
+      .send({ name: 'New name' })
+      .expect(428);
+
+    expect(response.body.error).toMatchObject({
+      code: 'PRECONDITION_REQUIRED',
+      message: 'If-Match header is required.'
+    });
+  });
+
+  it('returns the latest duty details when an update uses a stale ETag', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Current server name' }], { [FIRST_ID]: 2 }),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app)
+      .put(`/api/duties/${FIRST_ID}`)
+      .set('If-Match', createDutyEtag(FIRST_ID, '1'))
+      .send({ name: 'Stale name' })
+      .expect(412);
+
+    expect(response.headers.etag).toBe(createDutyEtag(FIRST_ID, '2'));
+    expect(response.body.error).toMatchObject({
+      code: 'PRECONDITION_FAILED',
+      message: 'Duty has changed since you opened it. The latest duty has been loaded.',
+      details: {
+        latestDuty: {
+          id: FIRST_ID,
+          name: 'Current server name'
+        }
+      }
     });
   });
 
@@ -149,6 +208,7 @@ describe('duty routes', () => {
 
     const response = await request(app)
       .put(`/api/duties/${MISSING_ID}`)
+      .set('If-Match', createDutyEtag(MISSING_ID, '1'))
       .send({ name: 'Still missing' })
       .expect(404);
 
@@ -218,17 +278,22 @@ describe('duty routes', () => {
 });
 
 class InMemoryDutyService implements DutyServiceContract {
-  private readonly duties = new Map<string, Duty>();
+  private readonly duties = new Map<string, DutyRecord>();
   private nextIdIndex = 0;
 
-  public constructor(seed: Duty[] = []) {
+  public constructor(seed: Duty[] = [], versions: Record<string, number> = {}) {
     for (const duty of seed) {
-      this.duties.set(duty.id, duty);
+      this.duties.set(duty.id, {
+        ...duty,
+        version: String(versions[duty.id] ?? 1)
+      });
     }
   }
 
   public async listDuties(query: DutyListQuery): Promise<DutyListPage> {
-    const items = Array.from(this.duties.values()).slice(query.offset, query.offset + query.limit);
+    const items = Array.from(this.duties.values())
+      .slice(query.offset, query.offset + query.limit)
+      .map(toDuty);
     const total = this.duties.size;
 
     return {
@@ -243,17 +308,44 @@ class InMemoryDutyService implements DutyServiceContract {
   public async createDuty(input: DutyInput): Promise<Duty> {
     const id = [FIRST_ID, SECOND_ID][this.nextIdIndex] ?? String(this.nextIdIndex + 3);
     this.nextIdIndex += 1;
-    const duty = { id, name: input.name };
+    const duty = { id, name: input.name, version: '1' };
     this.duties.set(id, duty);
-    return duty;
+    return toDuty(duty);
   }
 
-  public async updateDuty(id: string, input: DutyInput): Promise<Duty> {
-    if (!this.duties.has(id)) {
+  public async getDuty(id: string): Promise<DutyRecord> {
+    const duty = this.duties.get(id);
+
+    if (duty === undefined) {
       throw new NotFoundError('Duty was not found.');
     }
 
-    const duty = { id, name: input.name };
+    return duty;
+  }
+
+  public async updateDuty(id: string, input: DutyInput, expectedVersion: string): Promise<DutyRecord> {
+    const currentDuty = this.duties.get(id);
+
+    if (currentDuty === undefined) {
+      throw new NotFoundError('Duty was not found.');
+    }
+
+    if (currentDuty.version !== expectedVersion) {
+      throw new PreconditionFailedError('Duty has changed since you opened it. The latest duty has been loaded.', {
+        details: {
+          latestDuty: toDuty(currentDuty)
+        },
+        headers: {
+          ETag: createDutyEtag(currentDuty.id, currentDuty.version)
+        }
+      });
+    }
+
+    const duty = {
+      id,
+      name: input.name,
+      version: String(Number(currentDuty.version) + 1)
+    };
     this.duties.set(id, duty);
     return duty;
   }
@@ -263,6 +355,13 @@ class InMemoryDutyService implements DutyServiceContract {
       throw new NotFoundError('Duty was not found.');
     }
   }
+}
+
+function toDuty(duty: DutyRecord): Duty {
+  return {
+    id: duty.id,
+    name: duty.name
+  };
 }
 
 function restoreEnv(name: string, value: string | undefined): void {

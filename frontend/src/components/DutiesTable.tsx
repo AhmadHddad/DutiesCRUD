@@ -20,7 +20,7 @@ interface DutiesTableProps {
   loadedCount: number;
   total: number;
   onDelete(id: string): Promise<void>;
-  onEdit(duty: Duty): void;
+  onEdit(id: string): void;
   onLoadMore(): Promise<void>;
 }
 
@@ -56,7 +56,7 @@ export function DutiesTable({
               <Button
                 aria-label={formatEditDutyAriaLabel(duty.name)}
                 icon={<EditOutlined />}
-                onClick={() => onEdit(duty)}
+                onClick={() => onEdit(duty.id)}
                 type="text"
               />
             </Tooltip>

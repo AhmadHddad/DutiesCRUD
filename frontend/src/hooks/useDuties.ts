@@ -3,16 +3,16 @@ import type { DutyListPage } from '@nexplore-duties/contracts';
 import { useCallback, useMemo } from 'react';
 import axios from 'axios';
 
-import { createDuty, deleteDuty, getDutyPage, updateDuty } from '../api/dutiesApi';
+import { createDuty, deleteDuty, getDutyPage } from '../api/dutiesApi';
 import { dutyLabels } from '../i18n/dutiesLabels';
 
-const DUTIES_QUERY_KEY = ['duties'] as const;
+export const DUTIES_QUERY_KEY = ['duties'] as const;
 const DUTIES_PAGE_LIMIT = 50;
 
 /**
  * Central state manager for duties using React Query.
- * Handles infinite scrolling pagination and provides optimistic/cached UI updates
- * when duties are added, edited, or removed to avoid unnecessary full page refetches.
+ * Handles infinite scrolling pagination and provides cached UI updates
+ * when duties are added or removed.
  */
 export function useDuties() {
   const queryClient = useQueryClient();
@@ -34,25 +34,6 @@ export function useDuties() {
     }
   });
 
-  const saveDutyMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => updateDuty(id, { name }),
-    onSuccess: (updatedDuty) => {
-      queryClient.setQueryData<InfiniteData<DutyListPage, number>>(DUTIES_QUERY_KEY, (currentData) => {
-        if (currentData === undefined) {
-          return currentData;
-        }
-
-        return {
-          ...currentData,
-          pages: currentData.pages.map((page) => ({
-            ...page,
-            items: page.items.map((duty) => (duty.id === updatedDuty.id ? updatedDuty : duty))
-          }))
-        };
-      });
-    }
-  });
-
   const removeDutyMutation = useMutation({
     mutationFn: (id: string) => deleteDuty(id),
     onSuccess: async () => {
@@ -67,11 +48,6 @@ export function useDuties() {
   const addDuty = useCallback(
     async (name: string) => addDutyMutation.mutateAsync({ name }),
     [addDutyMutation]
-  );
-
-  const saveDuty = useCallback(
-    async (id: string, name: string) => saveDutyMutation.mutateAsync({ id, name }),
-    [saveDutyMutation]
   );
 
   const removeDuty = useCallback(async (id: string) => removeDutyMutation.mutateAsync(id), [removeDutyMutation]);
@@ -89,10 +65,9 @@ export function useDuties() {
   }, [dutiesQuery]);
 
   const error = useMemo(() => {
-    const sourceError =
-      addDutyMutation.error ?? saveDutyMutation.error ?? removeDutyMutation.error ?? dutiesQuery.error ?? null;
+    const sourceError = addDutyMutation.error ?? removeDutyMutation.error ?? dutiesQuery.error ?? null;
     return sourceError === null ? null : toUserMessage(sourceError);
-  }, [addDutyMutation.error, dutiesQuery.error, removeDutyMutation.error, saveDutyMutation.error]);
+  }, [addDutyMutation.error, dutiesQuery.error, removeDutyMutation.error]);
 
   return {
     duties,
@@ -102,12 +77,28 @@ export function useDuties() {
     isLoading: dutiesQuery.isLoading,
     isFetchingNextPage: dutiesQuery.isFetchingNextPage,
     hasNextPage: dutiesQuery.hasNextPage ?? false,
-    isMutating: addDutyMutation.isPending || saveDutyMutation.isPending || removeDutyMutation.isPending,
+    isMutating: addDutyMutation.isPending || removeDutyMutation.isPending,
     loadDuties,
     loadMore,
     addDuty,
-    saveDuty,
     removeDuty
+  };
+}
+
+export function mergeDutyIntoPages(
+  currentData: InfiniteData<DutyListPage, number> | undefined,
+  updatedDuty: { id: string; name: string }
+): InfiniteData<DutyListPage, number> | undefined {
+  if (currentData === undefined) {
+    return currentData;
+  }
+
+  return {
+    ...currentData,
+    pages: currentData.pages.map((page) => ({
+      ...page,
+      items: page.items.map((duty) => (duty.id === updatedDuty.id ? updatedDuty : duty))
+    }))
   };
 }
 

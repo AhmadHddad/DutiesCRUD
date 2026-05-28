@@ -122,7 +122,7 @@ describe('PgDutyRepository', () => {
     const { repository, pool } = createRepositoryHarness([
       {
         kind: 'resolve',
-        value: { rows: [{ id: '1', name: input.name }] },
+        value: { rows: [{ id: '1', name: input.name, version: '1' }] },
       },
     ]);
 
@@ -131,17 +131,55 @@ describe('PgDutyRepository', () => {
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO duties (name)'), [input.name]);
   });
 
-  it('updates duties without altering text that looks like HTML', async () => {
+  it('finds one duty with its version', async () => {
+    const { repository, pool } = createRepositoryHarness([
+      {
+        kind: 'resolve',
+        value: { rows: [{ id: '42', name: 'Plan release', version: '3' }] },
+      },
+    ]);
+
+    await expect(repository.findById('42')).resolves.toEqual({ id: '42', name: 'Plan release', version: '3' });
+
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('SELECT id::text, name, version::text'), ['42']);
+  });
+
+  it('updates duties conditionally when the expected version matches', async () => {
     const input = { name: '<b>New name</b>' };
     const { repository, pool } = createRepositoryHarness([
       {
         kind: 'resolve',
-        value: { rows: [{ id: '42', name: input.name }] },
+        value: { rows: [{ id: '42', name: input.name, version: '6' }] },
       },
     ]);
 
-    await expect(repository.update('42', input)).resolves.toEqual({ id: '42', name: input.name });
+    await expect(repository.update('42', input, '5')).resolves.toEqual({
+      duty: { id: '42', name: input.name, version: '6' },
+      conflictDuty: null,
+    });
 
-    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE duties'), [input.name, '42']);
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('AND version = $3::bigint'), [input.name, '42', '5']);
+  });
+
+  it('returns the latest duty when a conditional update hits a stale version', async () => {
+    const input = { name: 'New name' };
+    const { repository, pool } = createRepositoryHarness([
+      {
+        kind: 'resolve',
+        value: { rows: [] },
+      },
+      {
+        kind: 'resolve',
+        value: { rows: [{ id: '42', name: 'Current server name', version: '8' }] },
+      },
+    ]);
+
+    await expect(repository.update('42', input, '7')).resolves.toEqual({
+      duty: null,
+      conflictDuty: { id: '42', name: 'Current server name', version: '8' },
+    });
+
+    expect(pool.query).toHaveBeenNthCalledWith(1, expect.stringContaining('UPDATE duties'), [input.name, '42', '7']);
+    expect(pool.query).toHaveBeenNthCalledWith(2, expect.stringContaining('SELECT id::text, name, version::text'), ['42']);
   });
 });

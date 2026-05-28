@@ -1,10 +1,11 @@
 import { Pool } from 'pg';
 
-import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRepository } from './duty.types';
+import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRecord, DutyRepository, DutyUpdateResult } from './duty.types';
 
 interface DutyRow {
   id: string;
   name: string;
+  version: string;
 }
 
 interface CountRow {
@@ -71,28 +72,54 @@ export class PgDutyRepository implements DutyRepository {
       `
         INSERT INTO duties (name)
         VALUES ($1)
-        RETURNING id::text, name
+        RETURNING id::text, name, version::text
       `,
       [input.name]
     );
 
     const row = result.rows[0];
     if (!row) throw new Error('INSERT into duties returned no row');
-    return row as Duty;
+    return toDuty(row);
   }
 
-  public async update(id: string, input: DutyInput): Promise<Duty | null> {
+  public async findById(id: string): Promise<DutyRecord | null> {
+    const result = await this.pool.query<DutyRow>(
+      `
+        SELECT id::text, name, version::text
+        FROM duties
+        WHERE id = $1
+      `,
+      [id]
+    );
+
+    return result.rows[0] === undefined ? null : toDutyRecord(result.rows[0]);
+  }
+
+  public async update(id: string, input: DutyInput, expectedVersion: string): Promise<DutyUpdateResult> {
     const result = await this.pool.query<DutyRow>(
       `
         UPDATE duties
-        SET name = $1
+        SET name = $1,
+            version = version + 1
         WHERE id = $2
-        RETURNING id::text, name
+          AND version = $3::bigint
+        RETURNING id::text, name, version::text
       `,
-      [input.name, id]
+      [input.name, id, expectedVersion]
     );
 
-    return result.rows[0] ?? null;
+    const updatedRow = result.rows[0];
+    if (updatedRow !== undefined) {
+      return {
+        duty: toDutyRecord(updatedRow),
+        conflictDuty: null
+      };
+    }
+
+    return {
+      duty: null,
+      conflictDuty: await this.findById(id)
+    };
   }
 
   public async delete(id: string): Promise<Duty | null> {
@@ -107,4 +134,18 @@ export class PgDutyRepository implements DutyRepository {
 
     return result.rows[0] ?? null;
   }
+}
+
+function toDuty(row: DutyRow): Duty {
+  return {
+    id: row.id,
+    name: row.name
+  };
+}
+
+function toDutyRecord(row: DutyRow): DutyRecord {
+  return {
+    ...toDuty(row),
+    version: row.version
+  };
 }

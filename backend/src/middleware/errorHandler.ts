@@ -21,12 +21,29 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
     });
   }
 
-  res.status(appError.statusCode).json({
-    error: {
-      code: appError.code,
-      message: appError.expose ? appError.message : 'An unexpected error occurred.',
-      requestId
+  if (appError.headers !== undefined) {
+    for (const [headerName, headerValue] of Object.entries(appError.headers)) {
+      res.setHeader(headerName, headerValue);
     }
+  }
+
+  const errorBody: {
+    code: string;
+    message: string;
+    requestId: string;
+    details?: Record<string, unknown>;
+  } = {
+    code: appError.code,
+    message: appError.expose ? appError.message : 'An unexpected error occurred.',
+    requestId
+  };
+
+  if (appError.details !== undefined) {
+    errorBody.details = appError.details;
+  }
+
+  res.status(appError.statusCode).json({
+    error: errorBody
   });
 }
 

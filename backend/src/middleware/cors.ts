@@ -11,8 +11,8 @@ export function createCorsMiddleware(allowedOrigin: string) {
     }
 
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Request-Id');
-    res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Request-Id, If-Match');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id, ETag');
 
     if (req.method === 'OPTIONS') {
       res.status(204).end();

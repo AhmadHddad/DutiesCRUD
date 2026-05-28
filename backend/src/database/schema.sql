@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS duties (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name varchar(256) NOT NULL CHECK (length(trim(name)) > 0),
+  version bigint NOT NULL DEFAULT 1,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

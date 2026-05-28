@@ -9,6 +9,7 @@ export function createDutyRouter(dutyService: DutyServiceContract, writeRateLimi
   const mutationMiddleware = writeRateLimiter ?? ((_req, _res, next) => next());
 
   router.get('/', controller.list);
+  router.get('/:id', controller.getById);
   router.post('/', mutationMiddleware, controller.create);
   router.put('/:id', mutationMiddleware, controller.update);
   router.delete('/:id', mutationMiddleware, controller.delete);
