@@ -7,7 +7,6 @@ import { RateLimitError } from '../errors/appErrors';
 
 export function createSecurityMiddleware() {
   return helmet({
-    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
   });
 }

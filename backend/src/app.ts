@@ -24,11 +24,12 @@ export function createApp(dependencies: AppDependencies = {}) {
   const healthCheck = dependencies.healthCheck ?? defaultHealthCheck;
   const dutyWriteRateLimiter = createDutyWriteRateLimiter(config);
 
-  app.disable('x-powered-by');
   app.use(requestIdMiddleware);
   app.use(requestLogger);
   app.use(createSecurityMiddleware());
   app.use(createCorsMiddleware(config.corsOrigin));
+
+  // prevent request body size from exceeding 64kb to prevent api abuse.
   app.use(express.json({ limit: '64kb' }));
   app.use('/api', createApiRateLimiter(config));
 

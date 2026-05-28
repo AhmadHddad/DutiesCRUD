@@ -59,8 +59,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function sanitizeDutyName(value: string): string {
   return sanitizeHtml(value, {
-    allowedTags: [],
-    allowedAttributes: {}
+    allowedTags: false,
+    allowedAttributes: false
   }).trim();
 }
 
