@@ -59,13 +59,22 @@ describe('App', () => {
     expect(screen.getAllByText(formatLoadedCountLabel(1, 1))).toHaveLength(2);
   });
 
+  it('renders duty names with angle brackets as plain text', async () => {
+    dutiesStore = [{ id: '1', name: 'learn about <a> and 5 < 2 and 3>2' }];
+
+    renderApp();
+
+    expect(await screen.findByText('learn about <a> and 5 < 2 and 3>2')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('validates the create form', async () => {
     const user = userEvent.setup();
 
     renderApp();
 
     await screen.findByText(dutyLabels.dutiesTable.emptyState);
-    await user.click(screen.getByRole('button', { name: dutyLabels.createDutyForm.submitButton }));
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
 
     expect(await screen.findByText('Duty name is required.')).toBeInTheDocument();
     expect(mockedCreateDuty).not.toHaveBeenCalled();
@@ -78,10 +87,25 @@ describe('App', () => {
 
     await screen.findByText(dutyLabels.dutiesTable.emptyState);
     await user.type(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), 'Write README');
-    await user.click(screen.getByRole('button', { name: dutyLabels.createDutyForm.submitButton }));
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
 
     expect(mockedCreateDuty).toHaveBeenCalledWith({ name: 'Write README' });
     expect(await screen.findByText('Write README')).toBeInTheDocument();
+  });
+
+  it('creates a duty with angle brackets and renders it as plain text', async () => {
+    const user = userEvent.setup();
+    const name = 'learn about <a> and 5 < 2 and 3>2';
+
+    renderApp();
+
+    await screen.findByText(dutyLabels.dutiesTable.emptyState);
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), name);
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
+
+    expect(mockedCreateDuty).toHaveBeenCalledWith({ name });
+    expect(await screen.findByText(name)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('updates a duty', async () => {
@@ -101,6 +125,27 @@ describe('App', () => {
 
     await waitFor(() => expect(mockedUpdateDuty).toHaveBeenCalledWith('1', { name: 'New name' }));
     expect(await screen.findByText('New name')).toBeInTheDocument();
+  });
+
+  it('updates a duty with angle brackets and keeps it rendered as plain text', async () => {
+    const user = userEvent.setup();
+    const name = '<b>New name</b>';
+    dutiesStore = [{ id: '1', name: 'Old name' }];
+
+    renderApp();
+
+    await screen.findByText('Old name');
+    await user.click(screen.getByRole('button', { name: formatEditDutyAriaLabel('Old name') }));
+
+    const dialog = await screen.findByRole('dialog', { name: dutyLabels.editDutyModal.title });
+    const input = within(dialog).getByRole('textbox', { name: dutyLabels.editDutyModal.nameAriaLabel });
+    await user.clear(input);
+    await user.type(input, name);
+    await user.click(within(dialog).getByRole('button', { name: dutyLabels.editDutyModal.saveButton }));
+
+    await waitFor(() => expect(mockedUpdateDuty).toHaveBeenCalledWith('1', { name }));
+    expect(await screen.findByText(name)).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('validates the edit form', async () => {
@@ -210,4 +255,12 @@ function renderApp() {
       <App />
     </QueryClientProvider>
   );
+}
+
+function labelAtEnd(label: string): RegExp {
+  return new RegExp(`${escapeRegExp(label)}$`);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

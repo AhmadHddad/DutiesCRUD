@@ -29,14 +29,16 @@ describe('duty validation', () => {
     );
   });
 
-  it('sanitizes HTML from duty names', () => {
-    expect(parseDutyInput({ name: '  <script>alert(1)</script>Check backups  ' })).toEqual({
-      name: 'Check backups'
+  it('preserves literal angle brackets in duty names', () => {
+    expect(parseDutyInput({ name: '  learn about <a> and 5 < 2 and 3>2  ' })).toEqual({
+      name: 'learn about <a> and 5 < 2 and 3>2'
     });
   });
 
-  it('rejects duty names that sanitize to empty', () => {
-    expect(() => parseDutyInput({ name: '<script>alert(1)</script>' })).toThrow('Duty name is required.');
+  it('accepts text that looks like HTML as plain text', () => {
+    expect(parseDutyInput({ name: '<script>alert(1)</script>' })).toEqual({
+      name: '<script>alert(1)</script>'
+    });
   });
 
   it('accepts positive integer duty ids', () => {

@@ -152,6 +152,8 @@ interface Duty {
 ## Operational Notes
 
 - Duty names are trimmed and must be between 1 and 256 characters.
+- Duty names are treated as plain text on the backend. The API intentionally does not HTML-sanitize or strip tag-like input such as `learn about <a> and 5 < 2 and 3>2`, because that would mutate valid user text and change the intended value.
+- Safe HTML escaping is handled at render time in the frontend, where duty names are displayed as text rather than injected as raw HTML. This preserves the original text while still preventing HTML execution in the UI.
 - Route IDs must be valid UUIDs.
 - SQL uses parameterized queries only.
 - Request logs are emitted as JSON with request ID, method, path, status, and duration.

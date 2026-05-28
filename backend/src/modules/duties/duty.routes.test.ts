@@ -79,7 +79,7 @@ describe('duty routes', () => {
     });
   });
 
-  it('creates duties with sanitized validated input', async () => {
+  it('creates duties with plain-text names that include angle brackets', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
       healthCheck: async () => undefined
@@ -87,15 +87,15 @@ describe('duty routes', () => {
 
     const response = await request(app)
       .post('/api/duties')
-      .send({ name: '  <script>alert(1)</script>Check backups  ' })
+      .send({ name: '  learn about <a> and 5 < 2 and 3>2  ' })
       .expect(201);
 
     expect(response.body).toEqual({
-      data: { id: FIRST_ID, name: 'Check backups' }
+      data: { id: FIRST_ID, name: 'learn about <a> and 5 < 2 and 3>2' }
     });
   });
 
-  it('updates an existing duty with sanitized input', async () => {
+  it('updates an existing duty with plain-text names that look like HTML', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Old name' }]),
       healthCheck: async () => undefined
@@ -107,7 +107,7 @@ describe('duty routes', () => {
       .expect(200);
 
     expect(response.body).toEqual({
-      data: { id: FIRST_ID, name: 'New name' }
+      data: { id: FIRST_ID, name: '<b>New name</b>' }
     });
   });
 

@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import type { Pool } from 'pg';
 
 import { PgDutyRepository } from './duty.repository';
@@ -12,6 +14,7 @@ interface MockClient {
 
 interface MockPool {
   connect: jest.Mock<Promise<MockClient>, []>;
+  query: MockQuery;
 }
 
 type QueryStep =
@@ -35,6 +38,7 @@ function createRepositoryHarness(steps: QueryStep[]) {
   };
   const pool: MockPool = {
     connect: jest.fn().mockResolvedValue(client),
+    query: query,
   };
 
   return {
@@ -93,7 +97,7 @@ describe('PgDutyRepository', () => {
 
     expect(pool.connect).toHaveBeenCalledTimes(1);
     expect(client.query).toHaveBeenNthCalledWith(4, 'ROLLBACK');
-    expect(client.query.mock.calls.map(([sql]) => sql)).not.toContain('COMMIT');
+    expect(client.query.mock.calls.map(([sql]: [string, unknown[]?]) => sql)).not.toContain('COMMIT');
     expect(client.release).toHaveBeenCalledTimes(1);
   });
 
@@ -111,5 +115,33 @@ describe('PgDutyRepository', () => {
 
     expect(client.query).toHaveBeenNthCalledWith(4, 'ROLLBACK');
     expect(client.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates duties without altering plain-text angle brackets', async () => {
+    const input = { name: 'learn about <a> and 5 < 2 and 3>2' };
+    const { repository, pool } = createRepositoryHarness([
+      {
+        kind: 'resolve',
+        value: { rows: [{ id: '1', name: input.name }] },
+      },
+    ]);
+
+    await expect(repository.create(input)).resolves.toEqual({ id: '1', name: input.name });
+
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO duties (name)'), [input.name]);
+  });
+
+  it('updates duties without altering text that looks like HTML', async () => {
+    const input = { name: '<b>New name</b>' };
+    const { repository, pool } = createRepositoryHarness([
+      {
+        kind: 'resolve',
+        value: { rows: [{ id: '42', name: input.name }] },
+      },
+    ]);
+
+    await expect(repository.update('42', input)).resolves.toEqual({ id: '42', name: input.name });
+
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE duties'), [input.name, '42']);
   });
 });

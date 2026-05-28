@@ -1,5 +1,4 @@
 import { DUTY_NAME_MAX_LENGTH } from '@nexplore-duties/contracts';
-import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod';
 
 import { ValidationError } from '../../errors/appErrors';
@@ -22,7 +21,7 @@ const dutyListQuerySchema: z.ZodType<DutyListQuery> = z.object({
 });
 
 export const dutyInputSchema = z.object({
-  name: z.string().transform((value) => sanitizeDutyName(value)).pipe(dutyNameSchema)
+  name: dutyNameSchema
 });
 
 export function parseDutyInput(body: unknown): DutyInput {
@@ -60,13 +59,6 @@ export function parseDutyListQuery(query: unknown): DutyListQuery {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function sanitizeDutyName(value: string): string {
-  return sanitizeHtml(value, {
-    allowedTags: [],
-    allowedAttributes: {}
-  }).trim();
 }
 
 function parseWithValidation<T>(schema: z.ZodType<T>, value: unknown): T {
