@@ -4,9 +4,9 @@ import { createApp } from '../../app';
 import { NotFoundError } from '../../errors/appErrors';
 import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyServiceContract } from './duty.types';
 
-const FIRST_ID = '11111111-1111-4111-8111-111111111111';
-const SECOND_ID = '22222222-2222-4222-8222-222222222222';
-const MISSING_ID = '99999999-9999-4999-8999-999999999999';
+const FIRST_ID = '1';
+const SECOND_ID = '2';
+const MISSING_ID = '999999';
 
 describe('duty routes', () => {
   const originalRateLimitWindowMs = process.env.RATE_LIMIT_WINDOW_MS;
@@ -159,20 +159,20 @@ describe('duty routes', () => {
     expect(response.body.error.requestId).toEqual(expect.any(String));
   });
 
-  it('maps invalid database uuid casts to validation errors', async () => {
+  it('rejects invalid duty ids before they reach the service', async () => {
     const app = createApp({
-      dutyService: new InvalidIdDutyService(),
+      dutyService: new InMemoryDutyService(),
       healthCheck: async () => undefined
     });
 
     const response = await request(app)
-      .put('/api/duties/not-a-uuid')
+      .put('/api/duties/not-a-number')
       .send({ name: 'Still missing' })
       .expect(400);
 
     expect(response.body.error).toMatchObject({
       code: 'VALIDATION_ERROR',
-      message: 'Duty id must reference an existing record.'
+      message: 'Duty id must be a positive integer.'
     });
   });
 
@@ -241,7 +241,7 @@ class InMemoryDutyService implements DutyServiceContract {
   }
 
   public async createDuty(input: DutyInput): Promise<Duty> {
-    const id = [FIRST_ID, SECOND_ID][this.nextIdIndex] ?? `33333333-3333-4333-8333-${this.nextIdIndex}`;
+    const id = [FIRST_ID, SECOND_ID][this.nextIdIndex] ?? String(this.nextIdIndex + 3);
     this.nextIdIndex += 1;
     const duty = { id, name: input.name };
     this.duties.set(id, duty);
@@ -262,36 +262,6 @@ class InMemoryDutyService implements DutyServiceContract {
     if (!this.duties.delete(id)) {
       throw new NotFoundError('Duty was not found.');
     }
-  }
-}
-
-class InvalidIdDutyService implements DutyServiceContract {
-  public async listDuties(_query: DutyListQuery): Promise<DutyListPage> {
-    return {
-      items: [],
-      total: 0,
-      limit: 50,
-      offset: 0,
-      nextOffset: null
-    };
-  }
-
-  public async createDuty(input: DutyInput): Promise<Duty> {
-    return { id: FIRST_ID, name: input.name };
-  }
-
-  public async updateDuty(): Promise<Duty> {
-    throw {
-      code: '22P02',
-      message: 'invalid input syntax for type uuid: "not-a-uuid"'
-    };
-  }
-
-  public async deleteDuty(): Promise<void> {
-    throw {
-      code: '22P02',
-      message: 'invalid input syntax for type uuid: "not-a-uuid"'
-    };
   }
 }
 

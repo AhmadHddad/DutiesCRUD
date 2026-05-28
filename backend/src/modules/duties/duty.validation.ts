@@ -42,7 +42,12 @@ export function parseDutyId(id: string | undefined): string {
     throw new ValidationError('Duty id is required.');
   }
 
-  return id;
+  const normalized = id.trim();
+  if (!/^[1-9]\d*$/.test(normalized)) {
+    throw new ValidationError('Duty id must be a positive integer.');
+  }
+
+  return normalized;
 }
 
 export function parseDutyListQuery(query: unknown): DutyListQuery {
@@ -59,8 +64,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function sanitizeDutyName(value: string): string {
   return sanitizeHtml(value, {
-    allowedTags: false,
-    allowedAttributes: false
+    allowedTags: [],
+    allowedAttributes: {}
   }).trim();
 }
 

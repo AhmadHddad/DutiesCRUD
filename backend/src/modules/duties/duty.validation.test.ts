@@ -39,16 +39,29 @@ describe('duty validation', () => {
     expect(() => parseDutyInput({ name: '<script>alert(1)</script>' })).toThrow('Duty name is required.');
   });
 
-  it('accepts UUID duty ids', () => {
-    expect(parseDutyId('11111111-1111-4111-8111-111111111111')).toBe('11111111-1111-4111-8111-111111111111');
+  it('accepts positive integer duty ids', () => {
+    expect(parseDutyId('123')).toBe('123');
   });
 
-  it('accepts non-uuid duty ids for backend lookup handling', () => {
-    expect(parseDutyId('not-a-uuid')).toBe('not-a-uuid');
+  it('trims duty ids before validation', () => {
+    expect(parseDutyId(' 42 ')).toBe('42');
   });
 
   it('rejects missing duty ids', () => {
     expect(() => parseDutyId(undefined)).toThrow('Duty id is required.');
+  });
+
+  it('rejects non-numeric duty ids', () => {
+    expect(() => parseDutyId('not-a-number')).toThrow('Duty id must be a positive integer.');
+  });
+
+  it('rejects non-positive duty ids', () => {
+    expect(() => parseDutyId('0')).toThrow('Duty id must be a positive integer.');
+    expect(() => parseDutyId('-1')).toThrow('Duty id must be a positive integer.');
+  });
+
+  it('rejects decimal duty ids', () => {
+    expect(() => parseDutyId('1.5')).toThrow('Duty id must be a positive integer.');
   });
 
   it('applies default pagination values', () => {

@@ -4,18 +4,26 @@
   "version": "1.0.0",
   "description": "End-to-end duties to-do application with independent React and Node.js projects.",
   "scripts": {
-    "install:all": "npm --prefix packages/contracts install && npm --prefix backend install && npm --prefix frontend install",
+    "install:all": "npm install && npm --prefix packages/contracts install && npm --prefix backend install && npm --prefix frontend install",
     "contracts:build": "npm --prefix packages/contracts run build",
     "db:up": "docker compose up -d postgres",
+    "db:wait": "wait-on tcp:127.0.0.1:5432",
     "db:down": "docker compose down",
-    "backend:migrate": "npm --prefix backend run migrate",
+    "backend:init-db": "npm --prefix backend run init-db",
     "backend:dev": "npm --prefix backend run dev",
     "frontend:dev": "npm --prefix frontend run dev",
-    "app:dev": "npm run backend:dev && npm run frontend:dev",
+    "services:dev": "concurrently -n backend,frontend -c blue,green \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "db:reset": "docker compose down -v && npm run db:up && npm run db:wait && npm run backend:init-db",
+    "fullstack:dev": "npm run db:up && npm run db:wait && npm run backend:init-db && npm run services:dev",
+    "app:dev": "npm run fullstack:dev",
     "test": "npm --prefix backend test && npm --prefix frontend test",
     "build": "npm run contracts:build && npm --prefix backend run build && npm --prefix frontend run build"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.0",
+    "wait-on": "^9.0.10"
   }
 }

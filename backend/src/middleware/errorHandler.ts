@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { AppError, NotFoundError, ValidationError } from '../errors/appErrors';
+import { AppError, NotFoundError } from '../errors/appErrors';
 import { logger } from '../utils/logger';
 import { getRequestId } from './requestId';
 
@@ -35,18 +35,5 @@ function toAppError(error: unknown): AppError {
     return error;
   }
 
-  if (isInvalidUuidDatabaseError(error)) {
-    return new ValidationError('Duty id must reference an existing record.');
-  }
-
   return new AppError('INTERNAL_ERROR', 'An unexpected error occurred.', 500, false);
-}
-
-function isInvalidUuidDatabaseError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) {
-    return false;
-  }
-
-  const candidate = error as { code?: unknown; message?: unknown };
-  return candidate.code === '22P02' && typeof candidate.message === 'string' && candidate.message.includes('uuid');
 }

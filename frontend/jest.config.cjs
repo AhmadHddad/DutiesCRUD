@@ -5,6 +5,7 @@ module.exports = {
   testMatch: ['**/*.test.ts?(x)'],
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
+    '^@nexplore-duties/contracts$': '<rootDir>/../packages/contracts/src/index.ts',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   },
   transform: {

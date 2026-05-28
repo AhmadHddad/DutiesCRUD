@@ -44,29 +44,36 @@ Optional environment files can be created from:
 
 ## Run Locally
 
-Start PostgreSQL:
+Start the full stack from the repository root:
+
+```sh
+npm run fullstack:dev
+```
+
+This command:
+
+- starts PostgreSQL with Docker Compose
+- waits for the database port to accept connections
+- initializes the database schema
+- launches backend and frontend together
+
+You can still run each part separately if needed:
 
 ```sh
 npm run db:up
-```
-
-Run the database migration:
-
-```sh
-npm run backend:migrate
-```
-
-Start the backend in one terminal:
-
-```sh
+npm run db:wait
+npm run backend:init-db
 npm run backend:dev
-```
-
-Start the frontend in another terminal:
-
-```sh
 npm run frontend:dev
 ```
+
+Reset the local database from scratch:
+
+```sh
+npm run db:reset
+```
+
+`npm run db:reset` is destructive and removes all local PostgreSQL data stored in the Docker volume.
 
 Open [http://localhost:5173](http://localhost:5173). The backend listens on [http://localhost:4000](http://localhost:4000).
 

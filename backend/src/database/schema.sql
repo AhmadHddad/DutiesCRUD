@@ -1,8 +1,6 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 CREATE TABLE IF NOT EXISTS duties (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name varchar(120) NOT NULL CHECK (length(trim(name)) > 0),
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name varchar(256) NOT NULL CHECK (length(trim(name)) > 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -22,4 +20,5 @@ BEFORE UPDATE ON duties
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
-CREATE INDEX IF NOT EXISTS duties_created_at_idx ON duties (created_at DESC);
+CREATE INDEX IF NOT EXISTS duties_created_at_id_idx
+ON duties (created_at DESC, id DESC);

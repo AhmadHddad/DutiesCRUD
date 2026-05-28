@@ -52,8 +52,8 @@ describe('PgDutyRepository', () => {
         kind: 'resolve',
         value: {
           rows: [
-            { id: '11111111-1111-4111-8111-111111111111', name: 'Plan release' },
-            { id: '22222222-2222-4222-8222-222222222222', name: 'Check backups' },
+            { id: '1', name: 'Plan release' },
+            { id: '2', name: 'Check backups' },
           ],
         },
       },
@@ -63,8 +63,8 @@ describe('PgDutyRepository', () => {
 
     await expect(repository.findAll({ limit: 2, offset: 0 })).resolves.toEqual({
       items: [
-        { id: '11111111-1111-4111-8111-111111111111', name: 'Plan release' },
-        { id: '22222222-2222-4222-8222-222222222222', name: 'Check backups' },
+        { id: '1', name: 'Plan release' },
+        { id: '2', name: 'Check backups' },
       ],
       total: 3,
       limit: 2,
