@@ -108,6 +108,9 @@ export class PgDutyRepository implements DutyRepository {
       [input.name, id, expectedVersion]
     );
 
+    // This single conditional UPDATE is the core optimistic-lock check:
+    // if another writer already changed the row, the version no longer matches
+    // and no row is updated.
     const updatedRow = result.rows[0];
     if (updatedRow !== undefined) {
       return {
