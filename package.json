@@ -8,6 +8,7 @@
     "contracts:build": "npm --prefix packages/contracts run build",
     "db:up": "docker compose up -d postgres",
     "db:wait": "wait-on tcp:127.0.0.1:5432",
+    "db:seed": "npm --prefix backend run seed-db --",
     "db:down": "docker compose down",
     "backend:init-db": "npm --prefix backend run init-db",
     "backend:dev": "npm --prefix backend run dev",

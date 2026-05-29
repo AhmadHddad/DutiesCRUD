@@ -17,6 +17,7 @@ The root `package.json` is the workspace entry point for local development:
 - `npm run install:all`: installs root, contracts, backend, and frontend dependencies.
 - `npm run db:up`: starts PostgreSQL from `docker-compose.yml`.
 - `npm run db:wait`: waits for the local PostgreSQL port to accept connections.
+- `npm run db:seed`: appends generated duties through the backend seed script; defaults to 1,000,000 rows and supports overrides such as `npm run db:seed -- --count=250000`.
 - `npm run db:down`: stops the Docker Compose database.
 - `npm run db:reset`: recreates the local Docker volume, starts PostgreSQL, waits for it, and reapplies the canonical schema.
 - `npm run backend:init-db`: runs the backend database bootstrap script against `backend/src/database/schema.sql`.

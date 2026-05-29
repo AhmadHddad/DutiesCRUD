@@ -114,6 +114,15 @@ npm run backend:dev
 npm run frontend:dev
 ```
 
+Seed large append-only sample data after the schema exists:
+
+```sh
+npm run db:seed
+npm run db:seed -- --count=250000
+```
+
+`npm run db:seed` appends generated duties and defaults to `1,000,000` rows. It does not reset or truncate the database first.
+
 Reset the local database from scratch:
 
 ```sh
