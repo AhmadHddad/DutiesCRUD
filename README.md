@@ -193,7 +193,7 @@ Endpoints:
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Service and database health. |
-| `GET` | `/api/duties` | List duties. Supports optional `limit` and `offset` query params. Defaults to `limit=50` and `offset=0`, requires `limit >= 1`, `limit <= 100`, and `offset >= 0`. If a query param is repeated, the first value is used. |
+| `GET` | `/api/duties` | List duties. Supports optional `limit`, `offset`, and `name` query params. `name` applies a simple case-insensitive duty-name filter. Pagination defaults to `limit=50` and `offset=0`, requires `limit >= 1`, `limit <= 100`, and `offset >= 0`. If a query param is repeated, the first value is used. |
 | `GET` | `/api/duties/:id` | Get one duty and return an `ETag` header for optimistic concurrency. |
 | `POST` | `/api/duties` | Create a duty with `{ "name": "..." }`. |
 | `PUT` | `/api/duties/:id` | Update a duty with `{ "name": "..." }` and an `If-Match` header containing the latest duty `ETag`. |

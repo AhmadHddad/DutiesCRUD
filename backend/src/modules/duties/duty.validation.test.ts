@@ -97,6 +97,22 @@ describe('duty validation', () => {
     });
   });
 
+  it('parses and trims a name filter', () => {
+    expect(parseDutyListQuery({ name: '  Plan  ' })).toEqual({
+      limit: DUTY_LIST_DEFAULT_LIMIT,
+      offset: 0,
+      name: 'Plan'
+    });
+  });
+
+  it('ignores whitespace-only name filters', () => {
+    expect(parseDutyListQuery({ name: '   ' })).toEqual({
+      limit: DUTY_LIST_DEFAULT_LIMIT,
+      offset: 0,
+      name: undefined
+    });
+  });
+
   it('rejects invalid pagination values', () => {
     expect(() => parseDutyListQuery({ limit: String(DUTY_LIST_MAX_LIMIT + 1), offset: '-1' })).toThrow(
       `Limit must be at most ${DUTY_LIST_MAX_LIMIT}.`
@@ -121,9 +137,28 @@ describe('duty validation', () => {
       limit: DUTY_LIST_DEFAULT_LIMIT,
       offset: 0
     });
+    expect(parseDutyListQuery({ name: ['Plan', 'Backups'] })).toEqual({
+      limit: DUTY_LIST_DEFAULT_LIMIT,
+      offset: 0,
+      name: 'Plan'
+    });
   });
 
   it('rejects whitespace-only pagination values', () => {
     expect(() => parseDutyListQuery({ limit: '   ' })).toThrow('Limit must be an integer.');
+  });
+
+  it('rejects name filters longer than the maximum length', () => {
+    expect(() => parseDutyListQuery({ name: 'a'.repeat(DUTY_NAME_MAX_LENGTH + 1) })).toThrow(
+      `Name must be ${DUTY_NAME_MAX_LENGTH} characters or fewer.`
+    );
+  });
+
+  it('preserves plain-text filter characters', () => {
+    expect(parseDutyListQuery({ name: '  learn about <a> and 100%_ready  ' })).toEqual({
+      limit: DUTY_LIST_DEFAULT_LIMIT,
+      offset: 0,
+      name: 'learn about <a> and 100%_ready'
+    });
   });
 });

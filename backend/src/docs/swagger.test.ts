@@ -20,6 +20,9 @@ describe('swagger docs', () => {
       }
     });
     expect(response.body.paths['/api/duties']).toBeDefined();
+    expect(response.body.paths['/api/duties'].get.parameters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ $ref: '#/components/parameters/DutyNameFilter' })])
+    );
   });
 
   it('serves swagger ui html', async () => {

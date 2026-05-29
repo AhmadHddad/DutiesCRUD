@@ -9,19 +9,24 @@ import { dutyLabels } from '../i18n/dutiesLabels';
 export const DUTIES_QUERY_KEY = ['duties'] as const;
 const DUTIES_PAGE_LIMIT = 50;
 
+function getDutiesQueryKey(nameFilter: string | undefined) {
+  return [...DUTIES_QUERY_KEY, nameFilter ?? ''] as const;
+}
+
 /**
  * Central state manager for duties using React Query.
  * Handles infinite scrolling pagination and provides cached UI updates
  * when duties are added or removed.
  */
-export function useDuties() {
+export function useDuties(nameFilter: string | undefined) {
   const queryClient = useQueryClient();
   const dutiesQuery = useInfiniteQuery({
-    queryKey: DUTIES_QUERY_KEY,
+    queryKey: getDutiesQueryKey(nameFilter),
     queryFn: ({ pageParam }) =>
       getDutyPage({
         limit: DUTIES_PAGE_LIMIT,
-        offset: pageParam
+        offset: pageParam,
+        ...(nameFilter === undefined ? {} : { name: nameFilter })
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextOffset ?? undefined

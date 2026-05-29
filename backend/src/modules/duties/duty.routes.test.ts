@@ -68,6 +68,32 @@ describe('duty routes', () => {
     });
   });
 
+  it('filters duties by name with case-insensitive contains matching', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([
+        { id: FIRST_ID, name: 'Plan release' },
+        { id: SECOND_ID, name: 'BACKUP planning' },
+        { id: '3', name: 'Check backups' }
+      ]),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app).get('/api/duties?name=plan').expect(200);
+
+    expect(response.body).toEqual({
+      data: {
+        items: [
+          { id: FIRST_ID, name: 'Plan release' },
+          { id: SECOND_ID, name: 'BACKUP planning' }
+        ],
+        total: 2,
+        limit: 50,
+        offset: 0,
+        nextOffset: null
+      }
+    });
+  });
+
   it('returns validation errors for invalid pagination values', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
@@ -100,6 +126,44 @@ describe('duty routes', () => {
         offset: 0,
         nextOffset: 1
       }
+    });
+  });
+
+  it('uses the first value for duplicate name parameters', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService([
+        { id: FIRST_ID, name: 'Plan release' },
+        { id: SECOND_ID, name: 'Check backups' }
+      ]),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app).get('/api/duties?name=plan&name=backups').expect(200);
+
+    expect(response.body).toEqual({
+      data: {
+        items: [{ id: FIRST_ID, name: 'Plan release' }],
+        total: 1,
+        limit: 50,
+        offset: 0,
+        nextOffset: null
+      }
+    });
+  });
+
+  it('returns validation errors for over-length name filters', async () => {
+    const app = createApp({
+      dutyService: new InMemoryDutyService(),
+      healthCheck: async () => undefined
+    });
+
+    const response = await request(app)
+      .get(`/api/duties?name=${'a'.repeat(257)}`)
+      .expect(400);
+
+    expect(response.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Name must be 256 characters or fewer.'
     });
   });
 
@@ -346,10 +410,14 @@ class InMemoryDutyService implements DutyServiceContract {
   }
 
   public async listDuties(query: DutyListQuery): Promise<DutyListPage> {
-    const items = Array.from(this.duties.values())
+    const normalizedName = query.name?.toLocaleLowerCase();
+    const filteredDuties = Array.from(this.duties.values()).filter((duty) =>
+      normalizedName === undefined ? true : duty.name.toLocaleLowerCase().includes(normalizedName)
+    );
+    const items = filteredDuties
       .slice(query.offset, query.offset + query.limit)
       .map(toDuty);
-    const total = this.duties.size;
+    const total = filteredDuties.length;
 
     return {
       items,

@@ -58,7 +58,7 @@ describe('App', () => {
     dutiesStore = [];
     nextId = 1;
     dutyEtags = {};
-    mockedGetDutyPage.mockImplementation(async ({ limit, offset }: DutyListQuery) => createPage(limit, offset));
+    mockedGetDutyPage.mockImplementation(async ({ limit, offset, name }: DutyListQuery) => createPage(limit, offset, name));
     mockedGetDuty.mockImplementation(async (id: string) => {
       const duty = dutiesStore.find((currentDuty) => currentDuty.id === id);
 
@@ -126,6 +126,77 @@ describe('App', () => {
 
     expect(await screen.findByText('learn about <a> and 5 < 2 and 3>2')).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('requests a filtered page when the user types a name filter', async () => {
+    const user = userEvent.setup();
+    dutiesStore = [
+      { id: '1', name: 'Plan release' },
+      { id: '2', name: 'Check backups' }
+    ];
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    await screen.findByText('Plan release');
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel }), ' plan ');
+
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 0, name: 'plan' }));
+  });
+
+  it('shows only duties whose names match the filter', async () => {
+    const user = userEvent.setup();
+    dutiesStore = [
+      { id: '1', name: 'Plan release' },
+      { id: '2', name: 'Check backups' }
+    ];
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    await screen.findByText('Plan release');
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel }), 'plan');
+
+    expect(await screen.findByText('Plan release')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Check backups')).not.toBeInTheDocument());
+  });
+
+  it('matches duties case-insensitively when filtering by name', async () => {
+    const user = userEvent.setup();
+    dutiesStore = [
+      { id: '1', name: 'BACKUP planning' },
+      { id: '2', name: 'Check backups' }
+    ];
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    await screen.findByText('BACKUP planning');
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel }), 'plan');
+
+    expect(await screen.findByText('BACKUP planning')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Check backups')).not.toBeInTheDocument());
+  });
+
+  it('clearing the name filter restores the full list', async () => {
+    const user = userEvent.setup();
+    dutiesStore = [
+      { id: '1', name: 'Plan release' },
+      { id: '2', name: 'Check backups' }
+    ];
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    const filterInput = screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel });
+    await screen.findByText('Plan release');
+    await user.type(filterInput, 'plan');
+    await waitFor(() => expect(screen.queryByText('Check backups')).not.toBeInTheDocument());
+
+    await user.clear(filterInput);
+
+    expect(await screen.findByText('Check backups')).toBeInTheDocument();
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 0 }));
   });
 
   it('validates the create form', async () => {
@@ -456,11 +527,11 @@ describe('App', () => {
     dutiesStore = [{ id: '1', name: 'Plan release' }];
     dutyEtags['1'] = '"duty-1-v1"';
 
-    mockedGetDutyPage.mockImplementation(async ({ limit, offset }: DutyListQuery) => {
+    mockedGetDutyPage.mockImplementation(async ({ limit, offset, name }: DutyListQuery) => {
       getDutyPageCallCount += 1;
 
       if (getDutyPageCallCount === 1) {
-        return createPage(limit, offset);
+        return createPage(limit, offset, name);
       }
 
       return refetchRequest.promise;
@@ -482,14 +553,18 @@ describe('App', () => {
   });
 });
 
-function createPage(limit: number, offset: number): DutyListPage {
-  const items = dutiesStore.slice(offset, offset + limit);
+function createPage(limit: number, offset: number, name?: string): DutyListPage {
+  const normalizedName = name?.toLocaleLowerCase();
+  const filteredDuties = dutiesStore.filter((duty) =>
+    normalizedName === undefined ? true : duty.name.toLocaleLowerCase().includes(normalizedName)
+  );
+  const items = filteredDuties.slice(offset, offset + limit);
   return {
     items,
-    total: dutiesStore.length,
+    total: filteredDuties.length,
     limit,
     offset,
-    nextOffset: offset + items.length < dutiesStore.length ? offset + items.length : null
+    nextOffset: offset + items.length < filteredDuties.length ? offset + items.length : null
   };
 }
 

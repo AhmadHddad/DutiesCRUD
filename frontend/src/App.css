@@ -95,6 +95,11 @@ input {
   font-size: 18px;
 }
 
+.duties-filter {
+  max-width: 320px;
+  margin-bottom: 16px;
+}
+
 .create-duty-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

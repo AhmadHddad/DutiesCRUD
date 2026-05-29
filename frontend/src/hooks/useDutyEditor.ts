@@ -31,7 +31,7 @@ export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
     }
 
     setCurrentEtag(dutyQuery.data.etag);
-    queryClient.setQueryData<InfiniteData<DutyListPage, number>>(DUTIES_QUERY_KEY, (currentData) =>
+    queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
       mergeDutyIntoPages(currentData, dutyQuery.data.duty)
     );
   }, [dutyQuery.data, queryClient]);
@@ -58,7 +58,7 @@ export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
         setCurrentEtag(resource.etag);
         setConflictMessage(null);
         queryClient.setQueryData(dutyQueryKey(dutyId), resource);
-        queryClient.setQueryData<InfiniteData<DutyListPage, number>>(DUTIES_QUERY_KEY, (currentData) =>
+        queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
           mergeDutyIntoPages(currentData, resource.duty)
         );
         return true;
@@ -70,7 +70,7 @@ export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
             duty: error.latestDuty,
             etag: error.etag
           });
-          queryClient.setQueryData<InfiniteData<DutyListPage, number>>(DUTIES_QUERY_KEY, (currentData) =>
+          queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
             mergeDutyIntoPages(currentData, error.latestDuty)
           );
           return false;

@@ -12,6 +12,10 @@ export const dutyLabels = {
     namePlaceholder: 'Add a duty',
     submitButton: 'Add duty'
   },
+  dutiesFilter: {
+    placeholder: 'Filter duties by name',
+    ariaLabel: 'Filter duties by name'
+  },
   dutiesTable: {
     columns: {
       name: 'Duty',

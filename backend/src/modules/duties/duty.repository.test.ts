@@ -78,8 +78,16 @@ describe('PgDutyRepository', () => {
 
     expect(pool.connect).toHaveBeenCalledTimes(1);
     expect(client.query).toHaveBeenNthCalledWith(1, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-    expect(client.query.mock.calls[1]?.[0]).toContain('SELECT id::text, name');
-    expect(client.query.mock.calls[2]?.[0]).toContain('SELECT COUNT(*)::text AS count');
+    expect(client.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('SELECT id::text, name'),
+      [2, 0, null],
+    );
+    expect(client.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('SELECT COUNT(*)::text AS count'),
+      [null],
+    );
     expect(client.query).toHaveBeenNthCalledWith(4, 'COMMIT');
     expect(client.release).toHaveBeenCalledTimes(1);
   });
@@ -129,6 +137,62 @@ describe('PgDutyRepository', () => {
     await expect(repository.create(input)).resolves.toEqual({ id: '1', name: input.name });
 
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO duties (name)'), [input.name]);
+  });
+
+  it('filters duties by a case-insensitive literal name pattern', async () => {
+    const { repository, client } = createRepositoryHarness([
+      { kind: 'resolve', value: { rows: [] } },
+      {
+        kind: 'resolve',
+        value: {
+          rows: [{ id: '2', name: 'Plan release' }],
+        },
+      },
+      { kind: 'resolve', value: { rows: [{ count: '1' }] } },
+      { kind: 'resolve', value: { rows: [] } },
+    ]);
+
+    await expect(repository.findAll({ limit: 1, offset: 0, name: 'plan' })).resolves.toEqual({
+      items: [{ id: '2', name: 'Plan release' }],
+      total: 1,
+      limit: 1,
+      offset: 0,
+      nextOffset: null,
+    });
+
+    expect(client.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('name ILIKE $3'),
+      [1, 0, '%plan%'],
+    );
+    expect(client.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('name ILIKE $1'),
+      ['%plan%'],
+    );
+  });
+
+  it('escapes wildcard characters in the name filter', async () => {
+    const { repository, client } = createRepositoryHarness([
+      { kind: 'resolve', value: { rows: [] } },
+      {
+        kind: 'resolve',
+        value: {
+          rows: [{ id: '7', name: '100%_ready\\done' }],
+        },
+      },
+      { kind: 'resolve', value: { rows: [{ count: '1' }] } },
+      { kind: 'resolve', value: { rows: [] } },
+    ]);
+
+    await repository.findAll({ limit: 10, offset: 0, name: '100%_ready\\done' });
+
+    expect(client.query).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      [10, 0, '%100\\%\\_ready\\\\done%'],
+    );
+    expect(client.query).toHaveBeenNthCalledWith(3, expect.any(String), ['%100\\%\\_ready\\\\done%']);
   });
 
   it('finds one duty with its version', async () => {

@@ -11,6 +11,8 @@ import './App.css';
 const { Content } = Layout;
 
 export default function App() {
+  const [nameFilter, setNameFilter] = useState('');
+  const normalizedNameFilter = nameFilter.trim();
   const {
     duties,
     error,
@@ -25,7 +27,7 @@ export default function App() {
     loadMore,
     addDuty,
     removeDuty
-  } = useDuties();
+  } = useDuties(normalizedNameFilter === '' ? undefined : normalizedNameFilter);
   const [editingDutyId, setEditingDutyId] = useState<string | null>(null);
 
   async function handleCreate(name: string): Promise<void> {
@@ -40,6 +42,10 @@ export default function App() {
     setEditingDutyId(null);
   }
 
+  function handleNameFilterChange(nextValue: string): void {
+    setNameFilter(nextValue);
+  }
+
   return (
     <Layout className="app-shell">
       <DutiesPageHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -50,6 +56,7 @@ export default function App() {
 
         <DutiesSection
           duties={duties}
+          filterValue={nameFilter}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           isLoading={isLoading}
@@ -57,6 +64,7 @@ export default function App() {
           loadedCount={loadedCount}
           onDelete={removeDuty}
           onEdit={setEditingDutyId}
+          onFilterChange={handleNameFilterChange}
           onLoadMore={loadMore}
           total={total}
         />

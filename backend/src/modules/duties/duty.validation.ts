@@ -50,7 +50,8 @@ export function parseDutyListQuery(query: unknown): DutyListQuery {
 
   return {
     limit: parseIntegerQueryValue(query.limit, DUTY_LIST_DEFAULT_LIMIT, 1, DUTY_LIST_MAX_LIMIT, 'limit'),
-    offset: parseIntegerQueryValue(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, 'offset')
+    offset: parseIntegerQueryValue(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, 'offset'),
+    name: parseOptionalTextQueryValue(query.name, DUTY_NAME_MAX_LENGTH, 'name')
   };
 }
 
@@ -114,6 +115,24 @@ function parseIntegerQueryValue(
   }
 
   return parsedValue;
+}
+
+function parseOptionalTextQueryValue(value: unknown, maxLength: number, fieldName: string): string | undefined {
+  const rawValue = getFirstQueryValue(value);
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  const normalizedValue = rawValue.trim();
+  if (normalizedValue === '') {
+    return undefined;
+  }
+
+  if (normalizedValue.length > maxLength) {
+    throw new ValidationError(`${capitalize(fieldName)} must be ${maxLength} characters or fewer.`);
+  }
+
+  return normalizedValue;
 }
 
 /**

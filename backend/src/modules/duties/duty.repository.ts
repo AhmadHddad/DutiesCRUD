@@ -17,6 +17,7 @@ export class PgDutyRepository implements DutyRepository {
 
   public async findAll(query: DutyListQuery): Promise<DutyListPage> {
     const client = await this.pool.connect();
+    const filterPattern = toNameFilterPattern(query.name);
 
     try {
       // REPEATABLE READ guarantees both queries see the same snapshot,
@@ -28,17 +29,21 @@ export class PgDutyRepository implements DutyRepository {
           `
             SELECT id::text, name
             FROM duties
+            WHERE ($3::text IS NULL OR name ILIKE $3)
             ORDER BY created_at DESC, id DESC
             LIMIT $1
             OFFSET $2
           `,
-          [query.limit, query.offset]
+          [query.limit, query.offset, filterPattern]
         ),
         client.query<CountRow>(
           `
             SELECT COUNT(*)::text AS count
             FROM duties
+            WHERE ($1::text IS NULL OR name ILIKE $1)
           `
+          ,
+          [filterPattern]
         )
       ]);
 
@@ -151,4 +156,16 @@ function toDutyRecord(row: DutyRow): DutyRecord {
     ...toDuty(row),
     version: row.version
   };
+}
+
+function toNameFilterPattern(name: string | undefined): string | null {
+  if (name === undefined) {
+    return null;
+  }
+
+  return `%${escapeLikePattern(name)}%`;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
 }

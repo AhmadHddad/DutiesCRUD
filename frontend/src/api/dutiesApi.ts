@@ -45,7 +45,8 @@ export async function getDutyPage(query: DutyListQuery): Promise<DutyListPage> {
   const response = await apiClient.get<ApiEnvelope<DutyListPage>>(DUTIES_PATH, {
     params: {
       limit: query.limit,
-      offset: query.offset
+      offset: query.offset,
+      ...(query.name === undefined ? {} : { name: query.name })
     }
   });
   return response.data.data;

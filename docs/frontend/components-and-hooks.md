@@ -49,6 +49,7 @@ The frontend is organized so view components, async state, transport, labels, an
 - **Purpose:** wraps the table and summary text for the duties list.
 - **Props:**
   - `duties: Duty[]`
+  - `filterValue: string`
   - `hasNextPage: boolean`
   - `isFetchingNextPage: boolean`
   - `isLoading: boolean`
@@ -56,8 +57,10 @@ The frontend is organized so view components, async state, transport, labels, an
   - `loadedCount: number`
   - `onDelete(id: string): Promise<void>`
   - `onEdit(id: string): void`
+  - `onFilterChange(value: string): void`
   - `onLoadMore(): Promise<void>`
   - `total: number`
+- **Behavior:** renders a simple name filter input above the table and forwards updates to the list query state.
 
 ### `DutiesTable`
 
@@ -113,6 +116,7 @@ The frontend is organized so view components, async state, transport, labels, an
 - **Purpose:** central list state manager for duties.
 - **Responsibilities:**
   - loads paginated duties with `useInfiniteQuery`
+  - scopes the list query by an optional normalized name filter
   - exposes flattened `duties`, `total`, `loadedCount`, and loading flags
   - creates duties
   - deletes duties
@@ -138,6 +142,7 @@ The frontend is organized so view components, async state, transport, labels, an
 
 - base URL from `VITE_API_BASE_URL` with a local default of `http://localhost:4000`
 - pagination query construction
+- optional `name` filter query construction
 - create/update/delete requests
 - `ETag` extraction from read/update responses
 - `If-Match` submission for updates

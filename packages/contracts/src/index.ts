@@ -10,6 +10,7 @@ export interface DutyInput {
 export interface DutyListQuery {
   limit: number;
   offset: number;
+  name?: string;
 }
 
 export interface DutyListPage {

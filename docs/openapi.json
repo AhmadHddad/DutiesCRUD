@@ -67,6 +67,9 @@
           },
           {
             "$ref": "#/components/parameters/Offset"
+          },
+          {
+            "$ref": "#/components/parameters/DutyNameFilter"
           }
         ],
         "responses": {
@@ -410,6 +413,16 @@
           "type": "integer",
           "minimum": 0,
           "default": 0
+        }
+      },
+      "DutyNameFilter": {
+        "name": "name",
+        "in": "query",
+        "required": false,
+        "description": "Simple case-insensitive duty-name filter. Surrounding whitespace is trimmed, repeated values use the first item, and `%` or `_` are treated as plain text.",
+        "schema": {
+          "type": "string",
+          "maxLength": 256
         }
       },
       "XRequestIdHeader": {

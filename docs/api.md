@@ -54,11 +54,14 @@ Lists duties with offset pagination.
 
 - `limit`: optional integer, defaults to `50`, minimum `1`, maximum `100`.
 - `offset`: optional integer, defaults to `0`, minimum `0`.
+- `name`: optional string, trims surrounding whitespace, matches duty names using simple case-insensitive contains filtering, and treats `%` and `_` as plain text.
 
 ### Important Behavior
 
 - If `limit` or `offset` is repeated, the first value is used.
+- If `name` is repeated, the first value is used.
 - Invalid integers or out-of-range values return `400 VALIDATION_ERROR`.
+- Empty or whitespace-only `name` behaves the same as omitting the filter.
 
 ### Success Response
 
