@@ -2,6 +2,7 @@ import express from 'express';
 
 import { loadConfig } from './config/env';
 import { getPool } from './database/pool';
+import { createDocsRouter } from './docs/swagger';
 import { ServiceUnavailableError } from './errors/appErrors';
 import { createCorsMiddleware } from './middleware/cors';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -49,6 +50,7 @@ export function createApp(dependencies: AppDependencies = {}) {
     }
   });
 
+  app.use(createDocsRouter());
   app.use('/api/duties', createDutyRouter(dutyService, dutyWriteRateLimiter));
   app.use(notFoundHandler);
   app.use(errorHandler);
