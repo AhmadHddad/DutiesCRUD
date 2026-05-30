@@ -5,7 +5,7 @@ This repository is a small workspace with three product code areas and a few roo
 ## Top-Level Folders
 
 - `backend/`: Express API, PostgreSQL integration, middleware, and the duties domain module.
-- `frontend/`: React application built with Vite, Ant Design, and React Query.
+- `frontend/`: React application built with Vite, Ant Design, and direct API-driven local state.
 - `packages/contracts/`: Shared duty types and constants used by both frontend and backend.
 - `docs/`: Human-readable architecture, API, and component documentation.
 - `.trae/documents/`: planning artifacts created during implementation work. These are not part of the runtime application.

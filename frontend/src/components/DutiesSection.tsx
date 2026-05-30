@@ -6,32 +6,32 @@ import { dutyLabels, formatLoadedCountLabel } from '../i18n/dutiesLabels';
 import { DutiesTable } from './DutiesTable';
 
 interface DutiesSectionProps {
+  currentPage: number;
   duties: Duty[];
   filterValue: string;
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
   isLoading: boolean;
   isMutating: boolean;
   loadedCount: number;
+  pageSize: number;
   onDelete(id: string): Promise<void>;
   onEdit(id: string): void;
   onFilterChange(value: string): void;
-  onLoadMore(): Promise<void>;
+  onPageChange(page: number): void;
   total: number;
 }
 
 export function DutiesSection({
+  currentPage,
   duties,
   filterValue,
-  hasNextPage,
-  isFetchingNextPage,
   isLoading,
   isMutating,
   loadedCount,
+  pageSize,
   onDelete,
   onEdit,
   onFilterChange,
-  onLoadMore,
+  onPageChange,
   total
 }: DutiesSectionProps) {
   function handleFilterChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -55,15 +55,15 @@ export function DutiesSection({
         value={filterValue}
       />
       <DutiesTable
+        currentPage={currentPage}
         duties={duties}
-        hasNextPage={hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
         isLoading={isLoading}
         isMutating={isMutating}
         loadedCount={loadedCount}
+        pageSize={pageSize}
         onDelete={onDelete}
         onEdit={onEdit}
-        onLoadMore={onLoadMore}
+        onPageChange={onPageChange}
         total={total}
       />
     </section>

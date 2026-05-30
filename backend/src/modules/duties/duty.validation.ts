@@ -26,8 +26,8 @@ export function parseDutyInput(body: unknown): DutyInput {
  * Validates a route id and normalizes surrounding whitespace.
  * Example: `parseDutyId(' 42 ')` returns `'42'`.
  */
-export function parseDutyId(id: string | undefined): string {
-  if (id === undefined || id.trim() === '') {
+export function parseDutyId(id: string | null): string {
+  if (!id || id?.trim() === '') {
     throw new ValidationError('Duty id is required.');
   }
 
@@ -96,7 +96,7 @@ function parseIntegerQueryValue(
   fieldName: string
 ): number {
   const rawValue = getFirstQueryValue(value);
-  if (rawValue === undefined) {
+  if (!rawValue) {
     return defaultValue;
   }
 
@@ -118,14 +118,9 @@ function parseIntegerQueryValue(
 }
 
 function parseOptionalTextQueryValue(value: unknown, maxLength: number, fieldName: string): string | undefined {
-  const rawValue = getFirstQueryValue(value);
-  if (rawValue === undefined) {
-    return undefined;
-  }
-
-  const normalizedValue = rawValue.trim();
-  if (normalizedValue === '') {
-    return undefined;
+  const normalizedValue = getFirstQueryValue(value)?.trim();
+  if (!normalizedValue) {
+    return;
   }
 
   if (normalizedValue.length > maxLength) {
@@ -140,8 +135,8 @@ function parseOptionalTextQueryValue(value: unknown, maxLength: number, fieldNam
  * Example: `getFirstQueryValue(['1', '2'])` returns `'1'`.
  */
 function getFirstQueryValue(value: unknown): string | undefined {
-  if (value === undefined) {
-    return undefined;
+  if (!value) {
+    return;
   }
 
   if (Array.isArray(value)) {

@@ -1,3 +1,4 @@
+import type { Duty } from '@nexplore-duties/contracts';
 import { lazy, Suspense } from 'react';
 import { Spin } from 'antd';
 
@@ -8,20 +9,21 @@ const EditDutyModal = lazy(() => import('./EditDutyModal'));
 interface DutyEditorManagerProps {
   dutyId: string | null;
   onClose(): void;
+  onDutyUpdated(duty: Duty): void;
 }
 
-export function DutyEditorManager({ dutyId, onClose }: DutyEditorManagerProps) {
+export function DutyEditorManager({ dutyId, onClose, onDutyUpdated }: DutyEditorManagerProps) {
   const {
     duty,
     error,
     conflictMessage,
     isLoading,
-    isRefreshing,
     isSaving,
     refreshDuty,
     saveDuty
   } = useDutyEditor({
-    dutyId
+    dutyId,
+    onDutyUpdated
   });
 
   async function handleSave(name: string): Promise<boolean> {
@@ -44,7 +46,6 @@ export function DutyEditorManager({ dutyId, onClose }: DutyEditorManagerProps) {
         duty={duty}
         error={error}
         isLoading={isLoading}
-        isRefreshing={isRefreshing}
         isSaving={isSaving}
         onCancel={onClose}
         onRefresh={() => void refreshDuty()}

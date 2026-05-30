@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DUTY_NAME_MAX_LENGTH, type Duty, type DutyInput, type DutyListPage, type DutyListQuery } from '@nexplore-duties/contracts';
@@ -19,6 +18,7 @@ import {
   formatEditDutyAriaLabel,
   formatLoadedCountLabel
 } from './i18n/dutiesLabels';
+import { assertDefined } from './utils/assert';
 
 jest.mock('./api/dutiesApi', () => {
   class MockDutyPreconditionFailedError extends Error {
@@ -60,12 +60,7 @@ describe('App', () => {
     dutyEtags = {};
     mockedGetDutyPage.mockImplementation(async ({ limit, offset, name }: DutyListQuery) => createPage(limit, offset, name));
     mockedGetDuty.mockImplementation(async (id: string) => {
-      const duty = dutiesStore.find((currentDuty) => currentDuty.id === id);
-
-      if (duty === undefined) {
-        throw new Error('Duty was not found.');
-      }
-
+      const duty = requireDuty(id);
       return {
         duty,
         etag: dutyEtags[id] ?? `"duty-${id}-v1"`
@@ -78,12 +73,8 @@ describe('App', () => {
       return duty;
     });
     mockedUpdateDuty.mockImplementation(async (id: string, { name }: DutyInput, etag: string) => {
-      const currentDuty = dutiesStore.find((duty) => duty.id === id);
+      const currentDuty = requireDuty(id);
       const currentEtag = dutyEtags[id] ?? `"duty-${id}-v1"`;
-
-      if (currentDuty === undefined) {
-        throw new Error('Duty was not found.');
-      }
 
       if (etag !== currentEtag) {
         throw new DutyPreconditionFailedError(
@@ -142,6 +133,29 @@ describe('App', () => {
     await user.type(screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel }), ' plan ');
 
     await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 0, name: 'plan' }));
+  });
+
+  it('resets pagination to page 1 when the filter changes', async () => {
+    const user = userEvent.setup();
+    dutiesStore = Array.from({ length: 60 }, (_, index) => ({
+      id: String(index + 1),
+      name: `Duty ${index + 1}`
+    }));
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    expect(await screen.findByText('Duty 1')).toBeInTheDocument();
+
+    await user.click(getPaginationItem(2));
+
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 50 }));
+
+    const filterInput = screen.getByRole('textbox', { name: dutyLabels.dutiesFilter.ariaLabel });
+    await user.type(filterInput, '1');
+
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 0, name: '1' }));
+    expect(getPaginationItem(1)).toHaveClass('ant-pagination-item-active');
   });
 
   it('shows only duties whose names match the filter', async () => {
@@ -474,7 +488,8 @@ describe('App', () => {
     await waitFor(() => expect(screen.queryByText('Remove me')).not.toBeInTheDocument());
   });
 
-  it('loads more duties when the table scroll reaches the bottom', async () => {
+  it('loads duties for the selected pagination page', async () => {
+    const user = userEvent.setup();
     dutiesStore = Array.from({ length: 55 }, (_, index) => ({
       id: String(index + 1),
       name: `Duty ${index + 1}`
@@ -486,22 +501,60 @@ describe('App', () => {
     expect(await screen.findByText('Duty 1')).toBeInTheDocument();
     expect(screen.queryByText('Duty 55')).not.toBeInTheDocument();
 
-    const scrollBody = (document.querySelector('.ant-table-body, .ant-table-tbody-virtual-holder') ??
-      null) as HTMLDivElement | null;
-
-    expect(scrollBody).not.toBeNull();
-    if (scrollBody === null) {
-      throw new Error('Expected a virtualized table scroll container.');
-    }
-
-    Object.defineProperty(scrollBody, 'scrollHeight', { configurable: true, value: 1000 });
-    Object.defineProperty(scrollBody, 'clientHeight', { configurable: true, value: 200 });
-    Object.defineProperty(scrollBody, 'scrollTop', { configurable: true, value: 750, writable: true });
-
-    fireEvent.scroll(scrollBody);
+    await user.click(getPaginationItem(2));
 
     await waitFor(() => expect(mockedGetDutyPage).toHaveBeenCalledWith({ limit: 50, offset: 50 }));
-    await waitFor(() => expect(screen.getAllByText(formatLoadedCountLabel(55, 55))).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText(formatLoadedCountLabel(5, 55))).toHaveLength(2));
+  });
+
+  it('keeps the current page selected after creating a duty', async () => {
+    const user = userEvent.setup();
+    dutiesStore = Array.from({ length: 60 }, (_, index) => ({
+      id: String(index + 1),
+      name: `Duty ${index + 1}`
+    }));
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    expect(await screen.findByText('Duty 1')).toBeInTheDocument();
+
+    await user.click(getPaginationItem(2));
+
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 50 }));
+
+    await user.type(screen.getByRole('textbox', { name: dutyLabels.createDutyForm.nameAriaLabel }), 'New page-two duty');
+    await user.click(screen.getByRole('button', { name: labelAtEnd(dutyLabels.createDutyForm.submitButton) }));
+
+    await waitFor(() => expect(mockedCreateDuty).toHaveBeenCalledWith({ name: 'New page-two duty' }));
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 50 }));
+    expect(getPaginationItem(2)).toHaveClass('ant-pagination-item-active');
+  });
+
+  it('moves back to the nearest valid page after deleting the last item on a later page', async () => {
+    const user = userEvent.setup();
+    dutiesStore = Array.from({ length: 51 }, (_, index) => ({
+      id: String(index + 1),
+      name: `Duty ${index + 1}`
+    }));
+    dutyEtags = Object.fromEntries(dutiesStore.map((duty) => [duty.id, `"duty-${duty.id}-v1"`]));
+
+    renderApp();
+
+    expect(await screen.findByText('Duty 1')).toBeInTheDocument();
+
+    await user.click(getPaginationItem(2));
+
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 50 }));
+    expect(await screen.findByText('Duty 51')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: formatDeleteDutyAriaLabel('Duty 51') }));
+    await user.click(await screen.findByRole('button', { name: dutyLabels.dutiesTable.deleteConfirmOk }));
+
+    await waitFor(() => expect(mockedDeleteDuty).toHaveBeenCalledWith('51'));
+    await waitFor(() => expect(mockedGetDutyPage).toHaveBeenLastCalledWith({ limit: 50, offset: 0 }));
+    await waitFor(() => expect(screen.queryByText('Duty 51')).not.toBeInTheDocument());
+    expect(getPaginationItem(1)).toHaveClass('ant-pagination-item-active');
   });
 
   it('shows API errors', async () => {
@@ -555,41 +608,41 @@ describe('App', () => {
 
 function createPage(limit: number, offset: number, name?: string): DutyListPage {
   const normalizedName = name?.toLocaleLowerCase();
-  const filteredDuties = dutiesStore.filter((duty) =>
-    normalizedName === undefined ? true : duty.name.toLocaleLowerCase().includes(normalizedName)
-  );
+  const filteredDuties =
+    !normalizedName
+      ? dutiesStore
+      : dutiesStore.filter((duty) => duty.name.toLocaleLowerCase().includes(normalizedName));
   const items = filteredDuties.slice(offset, offset + limit);
+  const hasNextPage = offset + items.length < filteredDuties.length;
+  const nextOffset = hasNextPage ? offset + items.length : null;
+
   return {
     items,
     total: filteredDuties.length,
     limit,
     offset,
-    nextOffset: offset + items.length < filteredDuties.length ? offset + items.length : null
+    nextOffset
   };
 }
 
 function renderApp() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        refetchOnWindowFocus: false
-      },
-      mutations: {
-        retry: false
-      }
-    }
-  });
+  return render(<App />);
+}
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  );
+function requireDuty(id: string): Duty {
+  const duty = dutiesStore.find((currentDuty) => currentDuty.id === id);
+  assertDefined(duty, 'Duty was not found.');
+  return duty;
 }
 
 function labelAtEnd(label: string): RegExp {
   return new RegExp(`${escapeRegExp(label)}$`);
+}
+
+function getPaginationItem(page: number): HTMLElement {
+  const item = document.querySelector(`.ant-pagination-item-${page}`) as HTMLElement | null;
+  assertDefined(item, `Expected pagination item ${page} to exist.`);
+  return item;
 }
 
 function escapeRegExp(value: string): string {

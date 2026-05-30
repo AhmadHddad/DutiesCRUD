@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 
+import { assertDefined } from '../../utils/assert';
 import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRecord, DutyRepository, DutyUpdateResult } from './duty.types';
 
 interface DutyRow {
@@ -50,7 +51,8 @@ export class PgDutyRepository implements DutyRepository {
       await client.query('COMMIT');
 
       const total = Number(countResult.rows[0]?.count ?? '0');
-      const nextOffset = query.offset + pageResult.rows.length < total ? query.offset + pageResult.rows.length : null;
+      const hasNextPage = query.offset + pageResult.rows.length < total;
+      const nextOffset = hasNextPage ? query.offset + pageResult.rows.length : null;
 
       return {
         items: pageResult.rows,
@@ -83,7 +85,7 @@ export class PgDutyRepository implements DutyRepository {
     );
 
     const row = result.rows[0];
-    if (!row) throw new Error('INSERT into duties returned no row');
+    assertDefined(row, 'INSERT into duties returned no row');
     return toDuty(row);
   }
 

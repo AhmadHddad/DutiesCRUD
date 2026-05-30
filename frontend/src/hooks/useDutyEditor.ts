@@ -1,51 +1,71 @@
-import { InfiniteData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { DutyListPage } from '@nexplore-duties/contracts';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import type { Duty } from '@nexplore-duties/contracts';
+import { useCallback, useEffect, useState } from 'react';
 
-import { getDuty, updateDuty } from '../api/dutiesApi';
+import { type DutyResource, getDuty, updateDuty } from '../api/dutiesApi';
 import { dutyLabels } from '../i18n/dutiesLabels';
-import { DUTIES_QUERY_KEY, mergeDutyIntoPages } from './useDuties';
-
-const dutyQueryKey = (id: string) => ['duty', id] as const;
+import { toUserMessage } from '../utils/toUserMessage';
 
 interface UseDutyEditorOptions {
   dutyId: string | null;
+  onDutyUpdated(duty: Duty): void;
 }
 
-export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
-  const queryClient = useQueryClient();
+export function useDutyEditor({ dutyId, onDutyUpdated }: UseDutyEditorOptions) {
+  const [duty, setDuty] = useState<Duty | null>(null);
   const [currentEtag, setCurrentEtag] = useState<string | null>(null);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
-
-  const dutyQuery = useQuery({
-    queryKey: dutyId === null ? ['duty', 'idle'] : dutyQueryKey(dutyId),
-    queryFn: async () => getDuty(dutyId as string),
-    enabled: dutyId !== null,
-    retry: false
+  const [error, setError] = useState<string | null>(null);
+  const [{ isLoading, isSaving }, setStatusState] = useState({
+    isLoading: false,
+    isSaving: false
   });
 
-  useEffect(() => {
-    if (dutyQuery.data === undefined) {
-      return;
+  const applyDutyResource = useCallback((resource: DutyResource) => {
+    setDuty(resource.duty);
+    setCurrentEtag(resource.etag);
+    setConflictMessage(null);
+    setError(null);
+    onDutyUpdated(resource.duty);
+  }, [onDutyUpdated]);
+
+  const applyConflictDuty = useCallback((latestDuty: Duty, etag: string) => {
+    setDuty(latestDuty);
+    setCurrentEtag(etag);
+    setConflictMessage(dutyLabels.editDutyModal.staleConflict);
+    setError(null);
+    onDutyUpdated(latestDuty);
+  }, [onDutyUpdated]);
+
+  const resetEditorState = useCallback(() => {
+    setDuty(null);
+    setCurrentEtag(null);
+    setConflictMessage(null);
+    setError(null);
+    setStatusState({
+      isLoading: false,
+      isSaving: false
+    });
+  }, []);
+
+  const loadDuty = useCallback(async (id: string): Promise<void> => {
+    setError(null);
+    setStatusState((currentStatus) => ({
+      ...currentStatus,
+      isLoading: true
+    }));
+
+    try {
+      const resource = await getDuty(id);
+      applyDutyResource(resource);
+    } catch (loadError) {
+      setError(toUserMessage(loadError));
+    } finally {
+      setStatusState((currentStatus) => ({
+        ...currentStatus,
+        isLoading: false
+      }));
     }
-
-    setCurrentEtag(dutyQuery.data.etag);
-    queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
-      mergeDutyIntoPages(currentData, dutyQuery.data.duty)
-    );
-  }, [dutyQuery.data, queryClient]);
-
-  useEffect(() => {
-    if (dutyId === null) {
-      setCurrentEtag(null);
-      setConflictMessage(null);
-    }
-  }, [dutyId]);
-
-  const saveDutyMutation = useMutation({
-    mutationFn: async ({ id, name, etag }: { id: string; name: string; etag: string }) => updateDuty(id, { name }, etag)
-  });
+  }, [applyDutyResource]);
 
   const saveDuty = useCallback(
     async (name: string): Promise<boolean> => {
@@ -53,33 +73,32 @@ export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
         return false;
       }
 
+      setStatusState((currentStatus) => ({
+        ...currentStatus,
+        isSaving: true
+      }));
+      setError(null);
+
       try {
-        const resource = await saveDutyMutation.mutateAsync({ id: dutyId, name, etag: currentEtag });
-        setCurrentEtag(resource.etag);
-        setConflictMessage(null);
-        queryClient.setQueryData(dutyQueryKey(dutyId), resource);
-        queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
-          mergeDutyIntoPages(currentData, resource.duty)
-        );
+        const resource = await updateDuty(dutyId, { name }, currentEtag);
+        applyDutyResource(resource);
         return true;
-      } catch (error) {
-        if (isDutyPreconditionFailedError(error)) {
-          setCurrentEtag(error.etag);
-          setConflictMessage(dutyLabels.editDutyModal.staleConflict);
-          queryClient.setQueryData(dutyQueryKey(dutyId), {
-            duty: error.latestDuty,
-            etag: error.etag
-          });
-          queryClient.setQueriesData<InfiniteData<DutyListPage, number>>({ queryKey: DUTIES_QUERY_KEY }, (currentData) =>
-            mergeDutyIntoPages(currentData, error.latestDuty)
-          );
+      } catch (saveError) {
+        if (isDutyPreconditionFailedError(saveError)) {
+          applyConflictDuty(saveError.latestDuty, saveError.etag);
           return false;
         }
 
-        throw error;
+        setError(toUserMessage(saveError));
+        throw saveError;
+      } finally {
+        setStatusState((currentStatus) => ({
+          ...currentStatus,
+          isSaving: false
+        }));
       }
     },
-    [currentEtag, dutyId, queryClient, saveDutyMutation]
+    [applyConflictDuty, applyDutyResource, currentEtag, dutyId]
   );
 
   const refreshDuty = useCallback(async (): Promise<void> => {
@@ -87,48 +106,27 @@ export function useDutyEditor({ dutyId }: UseDutyEditorOptions) {
       return;
     }
 
-    const result = await dutyQuery.refetch();
-    if (result.error === null) {
-      setConflictMessage(null);
-    }
-  }, [dutyId, dutyQuery]);
+    await loadDuty(dutyId);
+  }, [dutyId, loadDuty]);
 
-  const error = useMemo(() => {
-    const sourceError = dutyQuery.error ?? saveDutyMutation.error ?? null;
-    if (sourceError === null || isDutyPreconditionFailedError(sourceError)) {
-      return null;
+  useEffect(() => {
+    if (dutyId === null) {
+      resetEditorState();
+      return;
     }
 
-    return toUserMessage(sourceError);
-  }, [dutyQuery.error, saveDutyMutation.error]);
+    void loadDuty(dutyId);
+  }, [dutyId, loadDuty, resetEditorState]);
 
   return {
-    duty: dutyQuery.data?.duty ?? null,
+    duty,
     error,
     conflictMessage,
-    isLoading: dutyQuery.isPending,
-    isFetching: dutyQuery.isFetching,
-    isRefreshing: dutyQuery.isFetching && !dutyQuery.isPending,
-    isSaving: saveDutyMutation.isPending,
+    isLoading,
+    isSaving,
     refreshDuty,
     saveDuty
   };
-}
-
-function toUserMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { error?: { message?: string; requestId?: string } } | undefined;
-    const message = data?.error?.message ?? error.message;
-    const requestId = data?.error?.requestId ?? error.response?.headers?.['x-request-id'];
-
-    return requestId === undefined ? message : `${message} Request ID: ${requestId}`;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return dutyLabels.errors.unexpected;
 }
 
 function isDutyPreconditionFailedError(

@@ -7,7 +7,7 @@ let pool: Pool | undefined;
 export function getPool(config: AppConfig = loadConfig()): Pool {
   // The pool is process-wide: once it is created, later calls reuse the same
   // instance and ignore any different config passed by later callers.
-  if (pool === undefined) {
+  if (!pool) {
     pool = new Pool({
       connectionString: config.databaseUrl,
       max: 10,
@@ -20,8 +20,7 @@ export function getPool(config: AppConfig = loadConfig()): Pool {
 }
 
 export async function closePool(): Promise<void> {
-  if (pool !== undefined) {
+  if (pool) {
     await pool.end();
-    pool = undefined;
   }
 }

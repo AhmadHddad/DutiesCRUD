@@ -1,4 +1,5 @@
-import { NotFoundError, PreconditionFailedError } from '../../errors/appErrors';
+import { PreconditionFailedError } from '../../errors/appErrors';
+import { requireFound } from '../../utils/assert';
 import { createDutyEtag } from './duty.etag';
 import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRecord, DutyRepository, DutyServiceContract } from './duty.types';
 
@@ -14,13 +15,7 @@ export class DutyService implements DutyServiceContract {
   }
 
   public async getDuty(id: string): Promise<DutyRecord> {
-    const duty = await this.repository.findById(id);
-
-    if (duty === null) {
-      throw new NotFoundError('Duty was not found.');
-    }
-
-    return duty;
+    return requireFound(await this.repository.findById(id), 'Duty was not found.');
   }
 
   public async updateDuty(id: string, input: DutyInput, expectedVersion: string): Promise<DutyRecord> {
@@ -30,28 +25,22 @@ export class DutyService implements DutyServiceContract {
       return result.duty;
     }
 
-    if (result.conflictDuty === null) {
-      throw new NotFoundError('Duty was not found.');
-    }
+    const conflictDuty = requireFound(result.conflictDuty, 'Duty was not found.');
 
     throw new PreconditionFailedError('Duty has changed since you opened it. The latest duty has been loaded.', {
       details: {
         latestDuty: {
-          id: result.conflictDuty.id,
-          name: result.conflictDuty.name
+          id: conflictDuty.id,
+          name: conflictDuty.name
         }
       },
       headers: {
-        ETag: createDutyEtag(result.conflictDuty.id, result.conflictDuty.version)
+        ETag: createDutyEtag(conflictDuty.id, conflictDuty.version)
       }
     });
   }
 
   public async deleteDuty(id: string): Promise<void> {
-    const duty = await this.repository.delete(id);
-
-    if (duty === null) {
-      throw new NotFoundError('Duty was not found.');
-    }
+    requireFound(await this.repository.delete(id), 'Duty was not found.');
   }
 }

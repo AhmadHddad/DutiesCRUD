@@ -6,11 +6,11 @@ import { dutyLabels } from '../i18n/dutiesLabels';
 const { Header } = Layout;
 
 interface DutiesPageHeaderProps {
-  isRefreshing: boolean;
+  isLoading: boolean;
   onRefresh(): void;
 }
 
-export function DutiesPageHeader({ isRefreshing, onRefresh }: DutiesPageHeaderProps) {
+export function DutiesPageHeader({ isLoading, onRefresh }: DutiesPageHeaderProps) {
   return (
     <Header className="app-header">
       <div className="app-header__inner">
@@ -23,7 +23,7 @@ export function DutiesPageHeader({ isRefreshing, onRefresh }: DutiesPageHeaderPr
         <Tooltip title={dutyLabels.app.refreshTooltip}>
           <Button
             aria-label={dutyLabels.app.refreshAriaLabel}
-            disabled={isRefreshing}
+            disabled={isLoading}
             icon={<ReloadOutlined />}
             onClick={onRefresh}
           />

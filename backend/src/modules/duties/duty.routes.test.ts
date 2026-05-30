@@ -3,12 +3,14 @@ import request from 'supertest';
 
 import { createApp } from '../../app';
 import { NotFoundError, PreconditionFailedError } from '../../errors/appErrors';
+import { requireFound } from '../../utils/assert';
 import { createDutyEtag } from './duty.etag';
 import { Duty, DutyInput, DutyListPage, DutyListQuery, DutyRecord, DutyServiceContract } from './duty.types';
 
 const FIRST_ID = '1';
 const SECOND_ID = '2';
 const MISSING_ID = '999999';
+const healthCheckOk = async (): Promise<void> => {};
 
 describe('duty routes', () => {
   const originalRateLimitWindowMs = process.env.RATE_LIMIT_WINDOW_MS;
@@ -27,7 +29,7 @@ describe('duty routes', () => {
         { id: FIRST_ID, name: 'Plan release' },
         { id: SECOND_ID, name: 'Check backups' }
       ]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties').expect(200);
@@ -52,7 +54,7 @@ describe('duty routes', () => {
         { id: FIRST_ID, name: 'Plan release' },
         { id: SECOND_ID, name: 'Check backups' }
       ]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties?limit=1&offset=1').expect(200);
@@ -75,7 +77,7 @@ describe('duty routes', () => {
         { id: SECOND_ID, name: 'BACKUP planning' },
         { id: '3', name: 'Check backups' }
       ]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties?name=plan').expect(200);
@@ -97,7 +99,7 @@ describe('duty routes', () => {
   it('returns validation errors for invalid pagination values', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties?limit=0&offset=-1').expect(400);
@@ -113,7 +115,7 @@ describe('duty routes', () => {
         { id: FIRST_ID, name: 'Plan release' },
         { id: SECOND_ID, name: 'Check backups' }
       ]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties?limit=1&limit=2').expect(200);
@@ -135,7 +137,7 @@ describe('duty routes', () => {
         { id: FIRST_ID, name: 'Plan release' },
         { id: SECOND_ID, name: 'Check backups' }
       ]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/api/duties?name=plan&name=backups').expect(200);
@@ -154,7 +156,7 @@ describe('duty routes', () => {
   it('returns validation errors for over-length name filters', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -170,7 +172,7 @@ describe('duty routes', () => {
   it('creates duties with plain-text names that include angle brackets', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -186,7 +188,7 @@ describe('duty routes', () => {
   it('returns one duty with an ETag header', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Plan release' }]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get(`/api/duties/${FIRST_ID}`).expect(200);
@@ -200,7 +202,7 @@ describe('duty routes', () => {
   it('updates an existing duty with plain-text names that look like HTML', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Old name' }]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -218,7 +220,7 @@ describe('duty routes', () => {
   it('requires If-Match for updates', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Old name' }]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -235,7 +237,7 @@ describe('duty routes', () => {
   it('returns the latest duty details when an update uses a stale ETag', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Current server name' }], { [FIRST_ID]: 2 }),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -260,7 +262,7 @@ describe('duty routes', () => {
   it('deletes an existing duty', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService([{ id: FIRST_ID, name: 'Remove me' }]),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     await request(app).delete(`/api/duties/${FIRST_ID}`).expect(204);
@@ -269,7 +271,7 @@ describe('duty routes', () => {
   it('returns validation errors with request ids', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -290,7 +292,7 @@ describe('duty routes', () => {
   it('returns validation errors for non-string duty names', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).post('/api/duties').send({ name: 123 }).expect(400);
@@ -304,7 +306,7 @@ describe('duty routes', () => {
   it('returns validation errors for non-object request bodies', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -322,7 +324,7 @@ describe('duty routes', () => {
   it('returns not found errors for missing duties', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -341,7 +343,7 @@ describe('duty routes', () => {
   it('rejects invalid duty ids before they reach the service', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app)
@@ -358,7 +360,7 @@ describe('duty routes', () => {
   it('returns health information', async () => {
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/health').expect(200);
@@ -375,7 +377,7 @@ describe('duty routes', () => {
 
     const app = createApp({
       dutyService: new InMemoryDutyService(),
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     await request(app).post('/api/duties').send({ name: 'First request' }).expect(201);
@@ -411,20 +413,24 @@ class InMemoryDutyService implements DutyServiceContract {
 
   public async listDuties(query: DutyListQuery): Promise<DutyListPage> {
     const normalizedName = query.name?.toLocaleLowerCase();
-    const filteredDuties = Array.from(this.duties.values()).filter((duty) =>
-      normalizedName === undefined ? true : duty.name.toLocaleLowerCase().includes(normalizedName)
-    );
+    const allDuties = Array.from(this.duties.values());
+    const filteredDuties =
+      !normalizedName
+        ? allDuties
+        : allDuties.filter((duty) => duty.name.toLocaleLowerCase().includes(normalizedName));
     const items = filteredDuties
       .slice(query.offset, query.offset + query.limit)
       .map(toDuty);
     const total = filteredDuties.length;
+    const hasNextPage = query.offset + items.length < total;
+    const nextOffset = hasNextPage ? query.offset + items.length : null;
 
     return {
       items,
       total,
       limit: query.limit,
       offset: query.offset,
-      nextOffset: query.offset + items.length < total ? query.offset + items.length : null
+      nextOffset
     };
   }
 
@@ -437,21 +443,11 @@ class InMemoryDutyService implements DutyServiceContract {
   }
 
   public async getDuty(id: string): Promise<DutyRecord> {
-    const duty = this.duties.get(id);
-
-    if (duty === undefined) {
-      throw new NotFoundError('Duty was not found.');
-    }
-
-    return duty;
+    return requireFound(this.duties.get(id) ?? null, 'Duty was not found.');
   }
 
   public async updateDuty(id: string, input: DutyInput, expectedVersion: string): Promise<DutyRecord> {
-    const currentDuty = this.duties.get(id);
-
-    if (currentDuty === undefined) {
-      throw new NotFoundError('Duty was not found.');
-    }
+    const currentDuty = requireFound(this.duties.get(id) ?? null, 'Duty was not found.');
 
     if (currentDuty.version !== expectedVersion) {
       throw new PreconditionFailedError('Duty has changed since you opened it. The latest duty has been loaded.', {

@@ -1,5 +1,6 @@
-import axios from 'axios';
+import axios, { type AxiosError } from 'axios';
 import type { Duty, DutyInput, DutyListPage, DutyListQuery } from '@nexplore-duties/contracts';
+import { assertNonEmptyString } from '../utils/assert';
 
 interface ApiEnvelope<T> {
   data: T;
@@ -42,12 +43,18 @@ const apiClient = axios.create({
 });
 
 export async function getDutyPage(query: DutyListQuery): Promise<DutyListPage> {
+  const params: DutyListQuery = {
+    limit: query.limit,
+    offset: query.offset
+  };
+  const normalizedName = query.name === '' ? undefined : query.name;
+
+  if (normalizedName) {
+    params.name = normalizedName;
+  }
+
   const response = await apiClient.get<ApiEnvelope<DutyListPage>>(DUTIES_PATH, {
-    params: {
-      limit: query.limit,
-      offset: query.offset,
-      ...(query.name === undefined ? {} : { name: query.name })
-    }
+    params
   });
   return response.data.data;
 }
@@ -79,14 +86,12 @@ export async function updateDuty(id: string, input: DutyInput, etag: string): Pr
     };
   } catch (error) {
     if (axios.isAxiosError<ApiErrorEnvelope>(error) && error.response?.status === 412) {
-      const latestDuty = error.response.data?.error?.details?.latestDuty;
-      const latestEtag = error.response.headers.etag;
-
-      if (latestDuty !== undefined && typeof latestEtag === 'string') {
+      const latestResource = readLatestDutyResource(error);
+      if (latestResource !== null) {
         throw new DutyPreconditionFailedError(
           error.response.data?.error?.message ?? error.message,
-          latestDuty,
-          latestEtag
+          latestResource.duty,
+          latestResource.etag
         );
       }
     }
@@ -100,9 +105,17 @@ export async function deleteDuty(id: string): Promise<void> {
 }
 
 function readEtagHeader(etag: string | undefined): string {
-  if (typeof etag !== 'string' || etag.trim() === '') {
-    throw new Error('Duty response is missing an ETag header.');
+  assertNonEmptyString(etag, 'Duty response is missing an ETag header.');
+  return etag;
+}
+
+function readLatestDutyResource(error: AxiosError<ApiErrorEnvelope>): DutyResource | null {
+  const duty = error.response?.data?.error?.details?.latestDuty;
+  const etag = error.response?.headers.etag;
+
+  if (!duty || typeof etag !== 'string') {
+    return null;
   }
 
-  return etag;
+  return { duty, etag };
 }

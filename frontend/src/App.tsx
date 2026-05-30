@@ -17,17 +17,17 @@ export default function App() {
     duties,
     error,
     total,
+    currentPage,
+    pageSize,
     loadedCount,
-    hasNextPage,
-    isFetchingNextPage,
     isLoading,
-    isRefreshing,
     isMutating,
     loadDuties,
-    loadMore,
+    changePage,
+    applyDutyUpdate,
     addDuty,
     removeDuty
-  } = useDuties(normalizedNameFilter === '' ? undefined : normalizedNameFilter);
+  } = useDuties(normalizedNameFilter);
   const [editingDutyId, setEditingDutyId] = useState<string | null>(null);
 
   async function handleCreate(name: string): Promise<void> {
@@ -48,28 +48,28 @@ export default function App() {
 
   return (
     <Layout className="app-shell">
-      <DutiesPageHeader isRefreshing={isRefreshing} onRefresh={handleRefresh} />
+      <DutiesPageHeader isLoading={isLoading} onRefresh={handleRefresh} />
       <Content className="app-content">
         <CreateDutySection isSubmitting={isMutating} onCreate={handleCreate} />
 
         {error !== null ? <Alert className="app-alert" message={error} showIcon type="error" /> : null}
 
         <DutiesSection
+          currentPage={currentPage}
           duties={duties}
           filterValue={nameFilter}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
           isLoading={isLoading}
           isMutating={isMutating}
           loadedCount={loadedCount}
+          pageSize={pageSize}
           onDelete={removeDuty}
           onEdit={setEditingDutyId}
           onFilterChange={handleNameFilterChange}
-          onLoadMore={loadMore}
+          onPageChange={changePage}
           total={total}
         />
       </Content>
-      <DutyEditorManager dutyId={editingDutyId} onClose={handleCloseEditor} />
+      <DutyEditorManager dutyId={editingDutyId} onClose={handleCloseEditor} onDutyUpdated={applyDutyUpdate} />
     </Layout>
   );
 }

@@ -3,7 +3,7 @@ import type { DutyInput as DutyFormValues } from '@nexplore-duties/contracts';
 import { Button, Form, Input } from 'antd';
 
 import { dutyLabels } from '../i18n/dutiesLabels';
-import { DUTY_NAME_MAX_LENGTH, getDutyNameError, normalizeDutyName } from './dutySchema';
+import { DUTY_NAME_MAX_LENGTH, normalizeDutyName, validateDutyNameRule } from './dutySchema';
 
 interface CreateDutyFormProps {
   isSubmitting: boolean;
@@ -28,17 +28,7 @@ export function CreateDutyForm({ isSubmitting, onCreate }: CreateDutyFormProps) 
       <Form.Item
         className="create-duty-form__input"
         name="name"
-        rules={[
-          {
-            validator: async (_, value: string | undefined) => {
-              const error = getDutyNameError(value ?? '');
-
-              if (error !== null) {
-                throw new Error(error);
-              }
-            }
-          }
-        ]}
+        rules={[{ validator: validateDutyNameRule }]}
       >
         <Input
           aria-label={dutyLabels.createDutyForm.nameAriaLabel}

@@ -3,10 +3,12 @@ import request from 'supertest';
 
 import { createApp } from '../app';
 
+const healthCheckOk = async (): Promise<void> => {};
+
 describe('swagger docs', () => {
   it('serves the checked-in openapi spec as json', async () => {
     const app = createApp({
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/openapi.json').expect(200);
@@ -27,7 +29,7 @@ describe('swagger docs', () => {
 
   it('serves swagger ui html', async () => {
     const app = createApp({
-      healthCheck: async () => undefined
+      healthCheck: healthCheckOk
     });
 
     const response = await request(app).get('/docs').expect(301);

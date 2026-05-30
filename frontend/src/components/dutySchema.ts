@@ -23,3 +23,9 @@ export function getDutyNameError(value: string): string | null {
 export function validateDutyName(value: string): true | string {
   return getDutyNameError(value) ?? true;
 }
+
+export function validateDutyNameRule(_: unknown, value: string | undefined): Promise<void> {
+  const error = getDutyNameError(value ?? '');
+
+  return error === null ? Promise.resolve() : Promise.reject(new Error(error));
+}

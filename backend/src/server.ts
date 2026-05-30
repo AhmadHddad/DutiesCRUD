@@ -24,7 +24,7 @@ function shutdown(signal: NodeJS.Signals): void {
   server.close((error?: Error) => {
     closePool()
       .then(() => {
-        if (error !== undefined) {
+        if (error) {
           logger.error('shutdown_failed', { error });
           process.exit(1);
         }

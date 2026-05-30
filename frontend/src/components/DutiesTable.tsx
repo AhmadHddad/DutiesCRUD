@@ -1,7 +1,7 @@
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Button, Empty, Popconfirm, Space, Table, Tooltip, Typography } from 'antd';
 import { ColumnsType } from 'antd/es/table';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { Duty } from '@nexplore-duties/contracts';
 
 import {
@@ -12,31 +12,30 @@ import {
 } from '../i18n/dutiesLabels';
 
 interface DutiesTableProps {
+  currentPage: number;
   duties: Duty[];
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
   isLoading: boolean;
   isMutating: boolean;
   loadedCount: number;
+  pageSize: number;
   total: number;
   onDelete(id: string): Promise<void>;
   onEdit(id: string): void;
-  onLoadMore(): Promise<void>;
+  onPageChange(page: number): void;
 }
 
 export function DutiesTable({
+  currentPage,
   duties,
-  hasNextPage,
-  isFetchingNextPage,
   isLoading,
   isMutating,
   loadedCount,
+  pageSize,
   total,
   onDelete,
   onEdit,
-  onLoadMore
+  onPageChange
 }: DutiesTableProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const columns = useMemo<ColumnsType<Duty>>(
     () => [
       {
@@ -78,44 +77,26 @@ export function DutiesTable({
     [isMutating, onDelete, onEdit]
   );
 
-  useEffect(() => {
-    const scrollBody = containerRef.current?.querySelector('.ant-table-body, .ant-table-tbody-virtual-holder');
-
-    if (!(scrollBody instanceof HTMLElement)) {
-      return;
-    }
-
-    const handleScroll = () => {
-      const remainingScroll = scrollBody.scrollHeight - scrollBody.scrollTop - scrollBody.clientHeight;
-
-      if (remainingScroll <= 120 && hasNextPage && !isFetchingNextPage) {
-        void onLoadMore();
-      }
-    };
-
-    scrollBody.addEventListener('scroll', handleScroll);
-
-    return () => {
-      scrollBody.removeEventListener('scroll', handleScroll);
-    };
-  }, [hasNextPage, isFetchingNextPage, onLoadMore]);
-
   return (
-    <div ref={containerRef}>
+    <div>
       <Table
         columns={columns}
         dataSource={duties}
         footer={() => (
           <Typography.Text type="secondary">
-            {isFetchingNextPage ? dutyLabels.dutiesTable.loadingMore : formatLoadedCountLabel(loadedCount, total)}
+            {formatLoadedCountLabel(loadedCount, total)}
           </Typography.Text>
         )}
         loading={isLoading}
         locale={{ emptyText: <Empty description={dutyLabels.dutiesTable.emptyState} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-        pagination={false}
+        pagination={{
+          current: currentPage,
+          onChange: onPageChange,
+          pageSize,
+          showSizeChanger: false,
+          total
+        }}
         rowKey="id"
-        scroll={{ y: 480 }}
-        virtual
       />
     </div>
   );

@@ -6,7 +6,7 @@ The frontend is organized so view components, async state, transport, labels, an
 
 - `src/App.tsx`: root composition layer.
 - `src/components`: visual building blocks and feature UI.
-- `src/hooks`: React Query state, mutation, and edit orchestration.
+- `src/hooks`: local async state, pagination, and edit orchestration.
 - `src/api/dutiesApi.ts`: Axios transport layer.
 - `src/i18n/dutiesLabels.ts`: centralized UI copy and aria labels.
 - `src/components/dutySchema.ts`: frontend-only validation helpers for duty names.
@@ -48,37 +48,37 @@ The frontend is organized so view components, async state, transport, labels, an
 - **Used by:** `App.tsx`
 - **Purpose:** wraps the table and summary text for the duties list.
 - **Props:**
+  - `currentPage: number`
   - `duties: Duty[]`
   - `filterValue: string`
-  - `hasNextPage: boolean`
-  - `isFetchingNextPage: boolean`
   - `isLoading: boolean`
   - `isMutating: boolean`
   - `loadedCount: number`
+  - `pageSize: number`
   - `onDelete(id: string): Promise<void>`
   - `onEdit(id: string): void`
   - `onFilterChange(value: string): void`
-  - `onLoadMore(): Promise<void>`
+  - `onPageChange(page: number): void`
   - `total: number`
-- **Behavior:** renders a simple name filter input above the table and forwards updates to the list query state.
+- **Behavior:** renders a simple name filter input above the table and resets pagination to page 1 when the filter changes.
 
 ### `DutiesTable`
 
 - **File:** `frontend/src/components/DutiesTable.tsx`
 - **Used by:** `DutiesSection`
-- **Purpose:** renders the list, edit/delete actions, empty state, and infinite-scroll behavior.
+- **Purpose:** renders the list, edit/delete actions, empty state, and standard page navigation.
 - **Props:**
+  - `currentPage: number`
   - `duties: Duty[]`
-  - `hasNextPage: boolean`
-  - `isFetchingNextPage: boolean`
   - `isLoading: boolean`
   - `isMutating: boolean`
   - `loadedCount: number`
+  - `pageSize: number`
   - `total: number`
   - `onDelete(id: string): Promise<void>`
   - `onEdit(id: string): void`
-  - `onLoadMore(): Promise<void>`
-- **Behavior:** attaches a scroll listener to the Ant Design table body and requests the next page near the bottom.
+  - `onPageChange(page: number): void`
+- **Behavior:** uses Ant Design table pagination and reports page changes back to the list hook.
 
 ### `DutyEditorManager`
 
@@ -88,6 +88,7 @@ The frontend is organized so view components, async state, transport, labels, an
 - **Props:**
   - `dutyId: string | null` - the duty currently being edited, or `null` when closed.
   - `onClose(): void` - closes the modal after a successful save or user cancel.
+  - `onDutyUpdated(duty: Duty): void` - syncs the latest duty into the currently visible table page.
 - **Behavior:** does not render anything when `dutyId` is `null`.
 
 ### `EditDutyModal`
@@ -115,14 +116,16 @@ The frontend is organized so view components, async state, transport, labels, an
 - **File:** `frontend/src/hooks/useDuties.ts`
 - **Purpose:** central list state manager for duties.
 - **Responsibilities:**
-  - loads paginated duties with `useInfiniteQuery`
-  - scopes the list query by an optional normalized name filter
-  - exposes flattened `duties`, `total`, `loadedCount`, and loading flags
+  - loads one paginated `DutyListPage` at a time with direct API calls
+  - scopes the list request by an optional normalized name filter
+  - resets pagination to page 1 when the filter changes
+  - exposes `duties`, `total`, `loadedCount`, pagination state, and loading flags
   - creates duties
   - deletes duties
   - refetches the list
+  - patches the currently visible page after edit reads/saves/conflicts
   - formats API and mutation errors into user-facing strings
-- **Important return values:** `duties`, `error`, `total`, `loadedCount`, `isLoading`, `isRefreshing`, `isFetchingNextPage`, `hasNextPage`, `isMutating`, `loadDuties`, `loadMore`, `addDuty`, `removeDuty`
+- **Important return values:** `duties`, `error`, `total`, `currentPage`, `pageSize`, `loadedCount`, `isLoading`, `isRefreshing`, `isMutating`, `loadDuties`, `changePage`, `applyDutyUpdate`, `addDuty`, `removeDuty`
 
 ### `useDutyEditor()`
 
@@ -133,7 +136,7 @@ The frontend is organized so view components, async state, transport, labels, an
   - stores and updates the latest `ETag`
   - submits updates with `If-Match`
   - handles `412 PRECONDITION_FAILED` by storing `latestDuty` and a conflict message
-  - merges refreshed duty data back into the paginated list cache
+  - reports refreshed duty data back to the visible list page through a callback
 - **Important return values:** `duty`, `error`, `conflictMessage`, `isLoading`, `isFetching`, `isRefreshing`, `isSaving`, `refreshDuty`, `saveDuty`
 
 ## Transport Layer

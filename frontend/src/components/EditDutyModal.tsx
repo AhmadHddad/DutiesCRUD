@@ -2,7 +2,7 @@ import type { Duty, DutyInput as DutyFormValues } from '@nexplore-duties/contrac
 import { Alert, Button, Form, Input, Modal, Spin } from 'antd';
 import { useEffect } from 'react';
 
-import { DUTY_NAME_MAX_LENGTH, getDutyNameError, normalizeDutyName } from './dutySchema';
+import { DUTY_NAME_MAX_LENGTH, normalizeDutyName, validateDutyNameRule } from './dutySchema';
 import { dutyLabels } from '../i18n/dutiesLabels';
 
 interface EditDutyModalProps {
@@ -10,7 +10,6 @@ interface EditDutyModalProps {
   conflictMessage: string | null;
   error: string | null;
   isLoading: boolean;
-  isRefreshing: boolean;
   isSaving: boolean;
   open: boolean;
   onCancel(): void;
@@ -23,7 +22,6 @@ function EditDutyModal({
   conflictMessage,
   error,
   isLoading,
-  isRefreshing,
   isSaving,
   open,
   onCancel,
@@ -66,7 +64,7 @@ function EditDutyModal({
       {conflictMessage !== null ? (
         <Alert
           action={
-            <Button loading={isRefreshing} onClick={onRefresh} size="small">
+            <Button loading={isLoading} onClick={onRefresh} size="small">
               {dutyLabels.editDutyModal.refreshButton}
             </Button>
           }
@@ -88,17 +86,7 @@ function EditDutyModal({
           <Form.Item
             label={dutyLabels.editDutyModal.nameLabel}
             name="name"
-            rules={[
-              {
-                validator: async (_, value: string | undefined) => {
-                  const error = getDutyNameError(value ?? '');
-
-                  if (error !== null) {
-                    throw new Error(error);
-                  }
-                }
-              }
-            ]}
+            rules={[{ validator: validateDutyNameRule }]}
           >
             <Input aria-label={dutyLabels.editDutyModal.nameAriaLabel} maxLength={DUTY_NAME_MAX_LENGTH} />
           </Form.Item>

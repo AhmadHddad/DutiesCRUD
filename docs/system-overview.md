@@ -5,7 +5,7 @@ This application is a shared duties workspace with a React frontend, an Express 
 ## Runtime Topology
 
 - Browser: renders the duties UI and sends HTTP requests to the backend.
-- Frontend app: React + Vite + Ant Design + React Query.
+- Frontend app: React + Vite + Ant Design + direct Axios-backed async state.
 - Backend app: Express + TypeScript + `pg` + custom middleware.
 - Database: PostgreSQL table `duties` with identity ids, a version column, and timestamps.
 - Local infrastructure: Docker Compose runs PostgreSQL for development.
@@ -22,7 +22,7 @@ This application is a shared duties workspace with a React frontend, an Express 
 
 ### List Duties
 
-- The frontend uses `useDuties()` with `useInfiniteQuery` to request paginated data.
+- The frontend uses `useDuties()` to request one server-side page at a time and drives pagination through the Ant Design table pager.
 - The backend accepts `limit` and `offset`, defaults to `limit=50` and `offset=0`, and returns a `DutyListPage` envelope.
 - If duplicate query params are sent, the backend uses the first value.
 
@@ -37,7 +37,7 @@ This application is a shared duties workspace with a React frontend, an Express 
 - `useDutyEditor()` loads one duty before editing.
 - `GET /api/duties/:id` returns the duty and an `ETag` header that encodes duty id and row version.
 - `PUT /api/duties/:id` requires `If-Match`.
-- If the row version changed, the backend returns `412 PRECONDITION_FAILED` with `latestDuty` and the latest `ETag` so the UI can refresh in place.
+- If the row version changed, the backend returns `412 PRECONDITION_FAILED` with `latestDuty` and the latest `ETag` so the UI can refresh in place and update the visible list row.
 
 ### Delete Duty
 
